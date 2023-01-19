@@ -17,6 +17,7 @@ pub enum State {
 #[serde(default)]
 pub struct ChatSettings {
     pub sidebar_always_on: bool,
+    pub sidebar_minimal: bool,
     pub notification: bool,
     pub show_user_enter_exit: bool,
     pub enable_code_highlight: bool,
@@ -26,7 +27,8 @@ pub struct ChatSettings {
 impl Default for ChatSettings {
     fn default() -> Self {
         Self {
-            sidebar_always_on: false,
+            sidebar_always_on: true,
+            sidebar_minimal: false,
             notification: true,
             show_user_enter_exit: true,
             enable_code_highlight: true,
@@ -107,15 +109,16 @@ impl eframe::App for Chatino {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        if self.settings.sidebar_always_on {
-            egui::SidePanel::right("side_panel").show(ctx, |ui| {
-                self.sidebar(ui);
-            });
-        } else {
-            egui::Window::new("💠")
-                .show(ctx, |ui| {
-                self.sidebar(ui);
-            });
+        if !self.settings.sidebar_minimal {
+            if self.settings.sidebar_always_on {
+                egui::SidePanel::right("side_panel").show(ctx, |ui| {
+                    self.sidebar(ui);
+                });
+            } else {
+                egui::Window::new("💠").show(ctx, |ui| {
+                    self.sidebar(ui);
+                });
+            }
         }
 
         egui::TopBottomPanel::bottom("bottom_panel")
@@ -159,12 +162,17 @@ impl eframe::App for Chatino {
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.add_enabled_ui(self.state != State::Login, |ui| {
-                ui.vertical_centered(|ui| {
+                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
                     ui.heading(if self.room.is_empty() {
                         "主页"
                     } else {
                         &self.room
                     });
+                    if self.settings.sidebar_minimal {
+                        if ui.button("💠").clicked() {
+                            self.settings.sidebar_minimal = false;
+                        }
+                    }
                 });
                 ui.separator();
                 egui::ScrollArea::vertical().show(ui, |ui| {
@@ -216,6 +224,13 @@ impl eframe::App for Chatino {
 impl Chatino {
     fn sidebar(&mut self, ui: &mut Ui) {
         ui.add_enabled_ui(self.state != State::Login, |ui| {
+            if !self.settings.sidebar_minimal {
+                ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                    if ui.button("最小化侧边栏").clicked() {
+                        self.settings.sidebar_minimal = true;
+                    }
+                });
+            }
             ui.heading("十字街");
             ui.label("一个简洁轻小的聊天网站");
             egui::warn_if_debug_build(ui);
