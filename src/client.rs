@@ -6,6 +6,7 @@ use anyhow::Result;
 use futures_channel::mpsc::UnboundedReceiver;
 use futures_util::stream::SplitStream;
 use futures_util::StreamExt;
+use log::{error, info};
 use tokio::net::TcpStream;
 use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
@@ -16,12 +17,6 @@ pub struct ChatinoClient {
     pub protocol: String,
     pub server: String,
     pub port: u16,
-    // pub send_tx: UnboundedSender<Message>,
-    // send_rx: UnboundedReceiver<Message>,
-    // pub recv_rx: UnboundedReceiver<Message>,
-    // recv_tx: UnboundedSender<Message>,
-    // pub runner: Box<dyn Future<Output = ()> + 'a>,
-    // pub runner: Box<dyn Fn() -> () + 'a>,
     pub reader: SplitStream<WebSocketStream<MaybeTlsStream<TcpStream>>>,
 }
 
@@ -32,9 +27,21 @@ impl ChatinoClient {
         let server = SERVER.to_string();
         let port = PORT;
         let url = format!("{}://{}:{}/", protocol, server, port);
-        let (ws_stream, _) = connect_async(url).await.expect("failed to connect");
+        let (ws_stream, _) = connect_async(url)
+            .await
+            .map_err(|e| {
+                error!("failed to connect: {}", e);
+                e
+            })
+            .unwrap();
         let (write, reader) = ws_stream.split();
-        let client_to_ws = sender.map(Ok).forward(write);
+        let client_to_ws = sender
+            .map(|x| {
+                info!("client_to_ws sender: {}", x);
+                x
+            })
+            .map(Ok)
+            .forward(write);
         tokio::spawn(client_to_ws);
         Ok(Self {
             protocol,
@@ -50,7 +57,7 @@ mod test {
     use crate::client::ChatinoClient;
     use anyhow::Result;
     use futures_util::StreamExt;
-    use log::{error, info};
+    use log::{error, info, warn};
     use std::time::Duration;
     use tokio::time::sleep;
     use tokio_tungstenite::tungstenite::Message;
@@ -62,7 +69,8 @@ mod test {
         let runner = async {
             let r = ChatinoClient::new(send_rx).await.unwrap();
             let reader = r.reader;
-            let ws_to_client = {
+            let ws_to_client = async {
+                sleep(Duration::from_millis(1700)).await;
                 reader.for_each(|message| async {
                     match message {
                         Ok(message) => {
@@ -72,7 +80,8 @@ mod test {
                             error!("err on connection: {}", e)
                         }
                     };
-                })
+                }).await;
+                warn!("reader to stdout exited");
             };
             tokio::spawn(ws_to_client);
             loop {
