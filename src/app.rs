@@ -6,11 +6,10 @@ use crate::message::{
 };
 use crate::ui::password::password;
 use crate::user::User;
-use anyhow::{anyhow, Result};
+use anyhow::Result;
 use eframe::emath::Align;
 use egui::{FontData, FontDefinitions, FontFamily, Layout, RichText, Ui};
-use futures_util::StreamExt;
-use log::{error, info};
+use futures_util::{future, pin_mut, StreamExt};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::{mpsc, Arc};
 use std::time::Duration;
@@ -137,7 +136,7 @@ impl Chatino {
         let (action_ui_tx, action_run_rx) = mpsc::channel();
         let (action_run_tx, action_ui_rx) = mpsc::channel();
         tokio::spawn(async {
-            Chatino::background(action_run_tx, action_run_rx).await;
+            Chatino::background(action_run_tx, action_run_rx).await.unwrap();
         });
 
         // Load previous app state (if any).
@@ -162,9 +161,9 @@ impl Chatino {
         // connect to server
         let client = ChatinoClient::new().await?;
         let client_available = Arc::new(Mutex::new(true));
-        let stop = Arc::new(Mutex::new(false));
+        // let stop = Arc::new(Mutex::new(false));
         let (ws_send_tx, ws_send_rx) = futures_channel::mpsc::unbounded();
-        let stop_send = stop.clone();
+        // let stop_send = stop.clone();
         let client_to_ws = ws_send_rx.map(Ok).forward(client.writer);
         let ws_to_ui = {
             client.reader.for_each(|message| async {
@@ -230,6 +229,8 @@ impl Chatino {
                 }
             })
         };
+        pin_mut!(client_to_ws, ws_to_ui);
+        future::select(ws_to_ui, client_to_ws).await;
         loop {
             // let client_available = client_available.clone();
             match rx.try_recv() {
@@ -262,7 +263,7 @@ impl Chatino {
                 },
                 Err(_) => {}
             }
-            sleep(Duration::from_millis(1)).await;
+            sleep(Duration::from_millis(10)).await;
         }
     }
 }
@@ -348,7 +349,7 @@ impl eframe::App for Chatino {
                     ui.separator();
                     egui::ScrollArea::vertical().show(ui, |ui| {
                         ui.with_layout(
-                            egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
+                            Layout::top_down(Align::LEFT).with_cross_justify(true),
                             |ui| {
                                 for i in 0..100 {
                                     // let _ = ui.button("test");
