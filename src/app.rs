@@ -115,49 +115,55 @@ impl eframe::App for Chatino {
             );
         });
 
-        if self.state == State::Login {
-            let mut emmit_login = false;
-            egui::Window::new("请登录").show(ctx, |ui| {
-                ui.vertical_centered(|ui| {
-                    egui::Grid::new("my_grid")
-                        .num_columns(2)
-                        .spacing([40.0, 4.0])
-                        .striped(true)
-                        .show(ui, |ui| {
-                            ui.label("聊天室");
-                            ui.text_edit_singleline(&mut self.room);
-                            ui.end_row();
-                            ui.label("昵称");
-                            ui.text_edit_singleline(&mut self.me.nick);
-                            ui.end_row();
-                            ui.label("密码(可留空)");
-                            ui.add(password(&mut self.password));
-                            ui.end_row();
+        match self.state {
+            State::Login | State::NowLogin => {
+                let mut emmit_login = false;
+                egui::Window::new("请登录").show(ctx, |ui| {
+                    ui.vertical_centered(|ui| {
+                        egui::Grid::new("my_grid")
+                            .num_columns(2)
+                            .spacing([40.0, 4.0])
+                            .striped(true)
+                            .show(ui, |ui| {
+                                ui.label("聊天室");
+                                ui.text_edit_singleline(&mut self.room);
+                                ui.end_row();
+                                ui.label("昵称");
+                                ui.text_edit_singleline(&mut self.me.nick);
+                                ui.end_row();
+                                ui.label("密码(可留空)");
+                                ui.add(password(&mut self.password));
+                                ui.end_row();
+                            });
+                        ui.separator();
+                        ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                            if self.state == State::Login {
+                                if ui.button("登录").clicked() {
+                                    self.state = State::NowLogin;
+                                    emmit_login = true;
+                                }
+                            } else {
+                                ui.spinner();
+                            }
                         });
-                    ui.separator();
-                    ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
-                        if ui.button("登录").clicked() {
-                            self.state = State::NowLogin;
-                            // self.state = State::Chatting;
-                            emmit_login = true;
-                        }
                     });
                 });
-            });
-            if emmit_login {
-                // self.client = Some(ChatinoClient::new())
-                match &self.action_tx {
-                    None => {}
-                    Some(tx) => {
-                        tx.send(Action::Login(
-                            self.room.to_string(),
-                            self.me.nick.to_string(),
-                            self.password.to_string(),
-                        ))
-                        .unwrap();
+                if emmit_login {
+                    // self.client = Some(ChatinoClient::new())
+                    match &self.action_tx {
+                        None => {}
+                        Some(tx) => {
+                            tx.send(Action::Login(
+                                self.room.to_string(),
+                                self.me.nick.to_string(),
+                                self.password.to_string(),
+                            ))
+                            .unwrap();
+                        }
                     }
                 }
             }
+            _ => {}
         }
 
         // parse recv data
