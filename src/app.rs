@@ -23,7 +23,7 @@ pub struct Chatino {
     #[serde(skip)]
     pub messages: Vec<Message>,
     pub input: String,
-    pub emote: String,
+    pub emote_key: String,
 }
 
 impl Default for Chatino {
@@ -35,7 +35,7 @@ impl Default for Chatino {
             password: "".to_owned(),
             messages: vec![],
             input: "".to_string(),
-            emote: EMOTES.first().unwrap().0.to_string(),
+            emote_key: EMOTES.first().unwrap().0.to_string(),
         }
     }
 }
@@ -82,7 +82,11 @@ impl eframe::App for Chatino {
             ui.add_enabled_ui(self.state == State::Chatting, |ui| {
                 egui::warn_if_debug_build(ui);
                 ui.heading("侧边栏");
-                if ui.button("清除数据").clicked() {}
+                if ui.button("清除数据").clicked() {
+                    self.state = Default::default();
+                    *ui.ctx().memory() = Default::default();
+                    ui.close_menu();
+                }
             });
         });
 
@@ -100,23 +104,23 @@ impl eframe::App for Chatino {
                         self.input.clear();
                     }
                     egui::ComboBox::from_id_source("emote_select")
-                        .selected_text(&self.emote)
+                        .selected_text(&self.emote_key)
                         .show_ui(ui, |ui| {
                             EMOTES.iter().for_each(|(k, _v)| {
                                 if ui
                                     .selectable_value(
-                                        &mut self.emote,
+                                        &mut self.emote_key,
                                         k.to_string(),
                                         k.to_string(),
                                     )
                                     .changed()
                                 {
-                                    self.input += emote_value(&self.emote);
+                                    self.input += emote_value(&self.emote_key);
                                 };
                             });
                         });
-                    if ui.button(&self.emote).clicked() {
-                        self.input += emote_value(&self.emote);
+                    if ui.button(&self.emote_key).clicked() {
+                        self.input += emote_value(&self.emote_key);
                     }
                     if ui.button("图片").clicked() {}
                 });
