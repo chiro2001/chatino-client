@@ -1,5 +1,6 @@
+use crate::message::Message;
 use crate::ui::password::password;
-use egui::{Button, FontData, FontDefinitions, FontFamily};
+use egui::{FontData, FontDefinitions, FontFamily};
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
@@ -12,20 +13,22 @@ pub enum State {
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct Chatino {
-    room: String,
-    nick: String,
-    state: State,
+    pub room: String,
+    pub nick: String,
+    pub state: State,
+    pub password: String,
     #[serde(skip)]
-    password: String,
+    pub messages: Vec<Message>,
 }
 
 impl Default for Chatino {
     fn default() -> Self {
         Self {
-            room: "".to_string(),
+            room: "公共聊天室".to_string(),
             nick: "test".to_owned(),
             state: State::default(),
             password: "".to_owned(),
+            messages: vec![],
         }
     }
 }
@@ -65,30 +68,25 @@ impl Chatino {
 }
 
 impl eframe::App for Chatino {
-    /// Called by the frame work to save state before shutdown.
-    fn save(&mut self, storage: &mut dyn eframe::Storage) {
-        eframe::set_value(storage, eframe::APP_KEY, self);
-    }
-
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::SidePanel::right("side_panel").show(ctx, |ui| {
             ui.add_enabled_ui(self.state == State::Chatting, |ui| {
+                egui::warn_if_debug_build(ui);
                 ui.heading("侧边栏");
+                if ui.button("清除数据").clicked() {
+                }
             });
         });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.add_enabled_ui(self.state == State::Chatting, |ui| {
-                ui.heading("eframe template");
-                ui.hyperlink("https://github.com/emilk/chatino");
-                ui.add(egui::github_link_file!(
-                    "https://github.com/emilk/chatino/blob/master/",
-                    "Source code."
-                ));
-                egui::warn_if_debug_build(ui);
+                ui.vertical_centered(|ui| {
+                    ui.heading(&self.room);
+                });
+                ui.separator();
             });
         });
 
@@ -108,9 +106,16 @@ impl eframe::App for Chatino {
                             ui.end_row();
                         });
                     ui.separator();
-                    ui.add(Button::new("登录"))
+                    if ui.button("登录").clicked() {
+                        self.state = State::Chatting
+                    }
                 });
             });
         }
+    }
+
+    /// Called by the frame work to save state before shutdown.
+    fn save(&mut self, storage: &mut dyn eframe::Storage) {
+        eframe::set_value(storage, eframe::APP_KEY, self);
     }
 }
