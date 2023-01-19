@@ -275,6 +275,7 @@ dependencies = [
  "console_error_panic_hook",
  "eframe",
  "egui",
+ "lazy_static",
  "log",
  "serde",
  "tracing-subscriber",

@@ -6,6 +6,7 @@ use crate::app::Chatino;
 mod app;
 mod ui;
 mod message;
+mod emote;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]

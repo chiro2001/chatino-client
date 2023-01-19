@@ -90,8 +90,12 @@ impl eframe::App for Chatino {
                 ui.vertical_centered(|ui| {
                     ui.with_layout(Layout::top_down_justified(Align::Max), |ui| {
                         ui.text_edit_multiline(&mut self.input);
-                        if ui.button("发送").clicked() {}
                     });
+                });
+                ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+                    if ui.button("<发送>").clicked() {}
+                    if ui.button("").clicked() {}
+                    if ui.button("图片").clicked() {}
                 });
             });
 
