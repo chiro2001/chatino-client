@@ -1,6 +1,7 @@
 use crate::message::Message;
 use crate::ui::password::password;
-use egui::{FontData, FontDefinitions, FontFamily};
+use eframe::emath::Align;
+use egui::{FontData, FontDefinitions, FontFamily, Layout};
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
@@ -20,6 +21,7 @@ pub struct Chatino {
     pub password: String,
     #[serde(skip)]
     pub messages: Vec<Message>,
+    pub input: String,
 }
 
 impl Default for Chatino {
@@ -30,6 +32,7 @@ impl Default for Chatino {
             state: State::default(),
             password: "".to_owned(),
             messages: vec![],
+            input: "".to_string(),
         }
     }
 }
@@ -88,14 +91,20 @@ impl eframe::App for Chatino {
                 });
                 ui.separator();
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.with_layout(
-                        egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
-                        |ui| {
-                            for _ in 0..100 {
-                                let _ = ui.button("test");
-                            }
-                        },
-                    );
+                    ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
+                        for i in 0..100 {
+                            // let _ = ui.button("test");
+                            ui.label(format!("test no. {}", i));
+                        }
+                    });
+                });
+            });
+        });
+        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
+            ui.vertical_centered(|ui| {
+                ui.with_layout(Layout::top_down_justified(Align::Max), |ui| {
+                    ui.text_edit_multiline(&mut self.input);
+                    if ui.button("发送").clicked() {}
                 });
             });
         });
