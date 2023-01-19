@@ -27,8 +27,7 @@ pub enum Action {
     ChatNormal(CmdChatNormal),
     ChatWhisper(CmdChatWhisper),
     Login(String, String, String),
-    SendMessage(ChatMessage),
-    RecvMessage(ChatMessage),
+    SendChat(CmdChatReq),
     RaiseError(String),
 }
 

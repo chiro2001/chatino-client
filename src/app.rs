@@ -1,10 +1,12 @@
 use crate::chatino::{Action, Chatino, State};
 use crate::emote::{emote_value, EMOTES};
+use crate::message::ChatMessage;
 use crate::ui::password::password;
 use crate::user::User;
 use eframe::emath::Align;
 use egui::{Layout, RichText, Ui};
-use std::sync::mpsc::{Receiver, TryRecvError};
+use std::ops::Add;
+use std::time::{Duration, SystemTime};
 
 impl eframe::App for Chatino {
     /// Called each time the UI needs repainting, which may be many times per second.
@@ -89,9 +91,12 @@ impl eframe::App for Chatino {
                         ui.with_layout(
                             Layout::top_down(Align::LEFT).with_cross_justify(true),
                             |ui| {
-                                for i in 0..100 {
-                                    // let _ = ui.button("test");
-                                    ui.label(format!("test no. {}", i));
+                                for m in &self.messages {
+                                    ui.with_layout(Layout::left_to_right(Align::LEFT), |ui| {
+                                        ui.label(&m.extra);
+                                        ui.label(&m.nick);
+                                    });
+                                    ui.label(&m.msg);
                                 }
                             },
                         );
@@ -169,10 +174,30 @@ impl eframe::App for Chatino {
                     Action::OnlineAdd(v) => {
                         self.users.push(v.nick);
                     }
-                    Action::Info(_) => {}
-                    Action::ChatNormal(_) => {}
-                    Action::ChatWhisper(_) => {}
-                    Action::RecvMessage(_) => {}
+                    Action::Info(v) => {
+                        self.messages.push(ChatMessage {
+                            nick: "*".to_string(),
+                            extra: v.trip,
+                            time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
+                            msg: v.text,
+                        });
+                    }
+                    Action::ChatNormal(v) => {
+                        self.messages.push(ChatMessage {
+                            nick: v.nick,
+                            extra: v.trip,
+                            time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
+                            msg: v.text,
+                        });
+                    }
+                    Action::ChatWhisper(v) => {
+                        self.messages.push(ChatMessage {
+                            nick: v.nick,
+                            extra: v.trip,
+                            time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
+                            msg: v.text,
+                        });
+                    }
                     Action::RaiseError(_) => {}
                     _ => {}
                 },

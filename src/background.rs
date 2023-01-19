@@ -120,7 +120,7 @@ pub async fn background(tx: Sender<Action>, rx: Receiver<Action>) -> Result<()> 
                             ))
                             .unwrap();
                     }
-                    Action::SendMessage(_) => {}
+                    Action::SendChat(_) => {}
                     _ => {}
                 },
                 Err(_) => {}
