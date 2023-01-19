@@ -4,7 +4,7 @@ use crate::message::{ChatMessage, CmdChatReq};
 use crate::ui::password::password;
 use crate::user::User;
 use eframe::emath::Align;
-use egui::{Layout, RichText, Ui};
+use egui::{Event, Key, Layout, RichText, Ui};
 use std::ops::Add;
 use std::time::{Duration, SystemTime};
 
@@ -35,6 +35,18 @@ impl eframe::App for Chatino {
                             ui.with_layout(Layout::top_down_justified(Align::Max), |ui| {
                                 if self.settings.editor_single_line {
                                     ui.text_edit_singleline(&mut self.input);
+                                    for event in ui.input().events.iter() {
+                                        match event {
+                                            Event::Key {
+                                                key: Key::Enter,
+                                                pressed: true,
+                                                ..
+                                            } => {
+                                                self.send_message();
+                                            }
+                                            _ => {}
+                                        }
+                                    }
                                 } else {
                                     ui.text_edit_multiline(&mut self.input);
                                 }
@@ -42,17 +54,7 @@ impl eframe::App for Chatino {
                         });
                         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                             if ui.button("<发送>").clicked() {
-                                match &self.action_tx {
-                                    None => {}
-                                    Some(tx) => {
-                                        tx.send(Action::SendChat(CmdChatReq {
-                                            cmd: "chat".to_string(),
-                                            text: self.input.to_string(),
-                                        }))
-                                        .unwrap();
-                                        self.input.clear();
-                                    }
-                                };
+                                self.send_message();
                             }
                             egui::ComboBox::from_id_source("emote_select")
                                 .selected_text(&self.emote_key)
@@ -158,7 +160,7 @@ impl eframe::App for Chatino {
                                 self.me.nick.to_string(),
                                 self.password.to_string(),
                             ))
-                            .unwrap();
+                                .unwrap();
                         }
                     }
                 }
@@ -195,7 +197,7 @@ impl eframe::App for Chatino {
                             self.messages.push(ChatMessage {
                                 nick: "*".to_string(),
                                 extra: v.trip,
-                                time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
+                                time: SystemTime::UNIX_EPOCH.add(Duration::from_millis(v.time)),
                                 msg: v.text,
                             });
                         }
@@ -203,7 +205,7 @@ impl eframe::App for Chatino {
                             self.messages.push(ChatMessage {
                                 nick: v.nick,
                                 extra: v.trip,
-                                time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
+                                time: SystemTime::UNIX_EPOCH.add(Duration::from_millis(v.time)),
                                 msg: v.text,
                             });
                         }
@@ -211,7 +213,7 @@ impl eframe::App for Chatino {
                             self.messages.push(ChatMessage {
                                 nick: v.nick,
                                 extra: v.trip,
-                                time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
+                                time: SystemTime::UNIX_EPOCH.add(Duration::from_millis(v.time)),
                                 msg: v.text,
                             });
                         }
@@ -292,5 +294,18 @@ impl Chatino {
                 }
             },
         );
+    }
+    fn send_message(&mut self) {
+        match &self.action_tx {
+            None => {}
+            Some(tx) => {
+                tx.send(Action::SendChat(CmdChatReq {
+                    cmd: "chat".to_string(),
+                    text: self.input.to_string(),
+                }))
+                    .unwrap();
+                self.input.clear();
+            }
+        };
     }
 }
