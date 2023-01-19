@@ -116,11 +116,13 @@ mod test {
 
             let stdin_to_ws = stdin_rx.map(Ok).forward(write);
             let ws_to_stdout = {
-                read.for_each(|message| async {
+                let r = read.for_each(|message| async {
                     // let data = message.unwrap().into_data();
                     // tokio::io::stdout().write_all(&data).await.unwrap();
                     info!("ws_to_stdout: message = {}", message.unwrap());
-                })
+                });
+                warn!("ws_to_stdout start? finished");
+                r
             };
 
             pin_mut!(stdin_to_ws, ws_to_stdout);
@@ -141,10 +143,12 @@ mod test {
         tracing_subscriber::fmt::init();
         let (send_tx, send_rx) = futures_channel::mpsc::unbounded();
         let runner = async {
+            let stop = Arc::new(Mutex::new(false));
             let r = ChatinoClient::new().await.unwrap();
 
+            let stop_send = stop.clone();
             let send_async = async move {
-                loop {
+                for _ in 0..4 {
                     sleep(Duration::from_millis(1000)).await;
                     match send_tx.unbounded_send(Message::Text("{\"cmd\":\"getinfo\"}".to_string()))
                     {
@@ -153,10 +157,12 @@ mod test {
                         }
                         Err(e) => {
                             error!("sender error: {}", e);
-                            panic!("{}", e);
+                            // panic!("{}", e);
+                            *stop_send.lock().await = true;
                         }
                     }
                 }
+                *stop_send.lock().await = true;
             };
             tokio::spawn(send_async);
             // tokio::spawn(read_stdin(sender));
@@ -169,8 +175,9 @@ mod test {
                 .forward(r.writer);
             let ws_to_stdout = {
                 let r = r.reader.for_each(|message| async {
-                    let data = message.unwrap().into_data();
-                    tokio::io::stdout().write_all(&data).await.unwrap();
+                    // let data = message.unwrap().into_data();
+                    // tokio::io::stdout().write_all(&data).await.unwrap();
+                    info!("ws_to_stdout: message = {}", message.unwrap());
                 });
                 warn!("ws_to_stdout start? finished");
                 r
@@ -180,7 +187,10 @@ mod test {
             future::select(ws_to_stdout, client_to_ws).await;
             // future::join(ws_to_stdout, client_to_ws).await;
             warn!("sleeping...");
-            sleep(Duration::from_millis(10000)).await;
+            // sleep(Duration::from_millis(10000)).await;
+            while !*stop.lock().await {
+                sleep(Duration::from_millis(100)).await;
+            }
             warn!("all finished");
         };
         let rt = tokio::runtime::Runtime::new().unwrap();
