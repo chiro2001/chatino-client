@@ -1,3 +1,4 @@
+use crate::emote::EMOTES;
 use crate::message::Message;
 use crate::ui::password::password;
 use eframe::emath::Align;
@@ -22,6 +23,7 @@ pub struct Chatino {
     #[serde(skip)]
     pub messages: Vec<Message>,
     pub input: String,
+    pub emote: String,
 }
 
 impl Default for Chatino {
@@ -33,6 +35,7 @@ impl Default for Chatino {
             password: "".to_owned(),
             messages: vec![],
             input: "".to_string(),
+            emote: EMOTES.keys().find(|_| true).unwrap().to_string(),
         }
     }
 }
@@ -94,7 +97,14 @@ impl eframe::App for Chatino {
                 });
                 ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                     if ui.button("<发送>").clicked() {}
-                    if ui.button("").clicked() {}
+                    egui::ComboBox::from_id_source(&self.emote)
+                        .selected_text(&self.emote)
+                        .show_ui(ui, |ui| {
+                            EMOTES.iter().for_each(|(k, v)| {
+                                ui.selectable_value(&mut self.emote, v.to_string(), k.to_string());
+                            });
+                        });
+                    if ui.button(&self.emote).clicked() {}
                     if ui.button("图片").clicked() {}
                 });
             });

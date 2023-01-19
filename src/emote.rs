@@ -1,6 +1,6 @@
 use lazy_static::lazy_static;
 lazy_static! {
-    static ref EMOTES: HashMap<&'static str, &'static str> = [
+    pub static ref EMOTES: HashMap<&'static str, &'static str> = [
         ("无", ""),
         ("代码框", "```\n```"),
         ("|∀ﾟ", "|∀ﾟ"),
