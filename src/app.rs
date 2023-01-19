@@ -1,15 +1,19 @@
 use crate::client::ChatinoClient;
 use crate::emote::{emote_value, EMOTES};
-use crate::message::Message;
+use crate::message::ChatMessage;
 use crate::ui::password::password;
 use crate::user::User;
+use anyhow::Result;
 use eframe::emath::Align;
 use egui::{FontData, FontDefinitions, FontFamily, Layout, RichText, Ui};
-use log::info;
+use futures_util::StreamExt;
+use log::{error, info};
 use std::sync::mpsc::{Receiver, Sender};
-use std::sync::{mpsc, Arc, Mutex};
-use std::time::{Duration, SystemTime};
+use std::sync::{mpsc, Arc};
+use std::time::Duration;
+use tokio::sync::Mutex;
 use tokio::time::sleep;
+use tokio_tungstenite::tungstenite::Message;
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
@@ -21,9 +25,10 @@ pub enum State {
 }
 
 pub enum Action {
+    GetInfo,
     Login(String, String, String),
-    SendMessage(Message),
-    RecvMessage(Message),
+    SendMessage(ChatMessage),
+    RecvMessage(ChatMessage),
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -62,14 +67,12 @@ pub struct Chatino {
     pub state: State,
     pub password: String,
     #[serde(skip)]
-    pub messages: Vec<Message>,
+    pub messages: Vec<ChatMessage>,
     pub input: String,
     pub emote_key: String,
     pub settings: ChatSettings,
     #[serde(skip)]
     pub users: Vec<User>,
-    // #[serde(skip)]
-    // pub client: Option<ChatinoClient>,
     #[serde(skip)]
     pub action_tx: Option<Sender<Action>>,
     #[serde(skip)]
@@ -141,10 +144,59 @@ impl Chatino {
         }
     }
 
-    pub async fn background(tx: Sender<Action>, rx: Receiver<Action>) {
+    pub async fn background(tx: Sender<Action>, rx: Receiver<Action>) -> Result<()> {
+        // connect to server
+        let mut client_available = false;
+        let client = ChatinoClient::new().await?;
+        client_available = true;
+        let stop = Arc::new(Mutex::new(false));
+        let (ws_send_tx, ws_send_rx) = futures_channel::mpsc::unbounded();
+        let stop_send = stop.clone();
+        // let send_async = async move {
+        //     loop {
+        //         sleep(Duration::from_millis(1000)).await;
+        //         match ws_send_tx.unbounded_send(Message::Text("{\"cmd\":\"getinfo\"}".to_string()))
+        //         {
+        //             Ok(_) => {
+        //                 info!("message sent");
+        //             }
+        //             Err(e) => {
+        //                 error!("sender error: {}", e);
+        //                 *(stop_send.lock().await) = true;
+        //             }
+        //         }
+        //     }
+        // };
+        // tokio::spawn(send_async);
+        let client_to_ws = ws_send_rx.map(Ok).forward(client.writer);
+        let ws_to_ui = {
+            client.reader.for_each(|message| async {
+                if let Ok(message) = message {
+                    match message {
+                        Message::Text(text) => {
+
+                        }
+                        _ => {}
+                    }
+                }
+            })
+        };
         loop {
-            info!("background");
-            sleep(Duration::from_millis(1000)).await;
+            match rx.try_recv() {
+                Ok(action) => match action {
+                    Action::GetInfo => {
+                        // after this command, connection will end
+                        // if let Some(client) = client {
+                        // }
+                        // client = None;
+                    }
+                    Action::Login(_, _, _) => {}
+                    Action::SendMessage(_) => {}
+                    _ => {}
+                },
+                Err(_) => {}
+            }
+            sleep(Duration::from_millis(1)).await;
         }
     }
 }
