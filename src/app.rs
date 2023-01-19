@@ -4,8 +4,9 @@ use egui::{FontData, FontDefinitions, FontFamily};
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
-    #[default]
+    // #[default]
     Login,
+    #[default]
     Chatting,
 }
 
@@ -75,8 +76,7 @@ impl eframe::App for Chatino {
             ui.add_enabled_ui(self.state == State::Chatting, |ui| {
                 egui::warn_if_debug_build(ui);
                 ui.heading("侧边栏");
-                if ui.button("清除数据").clicked() {
-                }
+                if ui.button("清除数据").clicked() {}
             });
         });
 
@@ -87,6 +87,16 @@ impl eframe::App for Chatino {
                     ui.heading(&self.room);
                 });
                 ui.separator();
+                egui::ScrollArea::vertical().show(ui, |ui| {
+                    ui.with_layout(
+                        egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
+                        |ui| {
+                            for _ in 0..100 {
+                                let _ = ui.button("test");
+                            }
+                        },
+                    );
+                });
             });
         });
 
