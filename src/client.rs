@@ -1,9 +1,9 @@
-#[allow(dead_code)]
+#![allow(dead_code)]
 pub const PROTOCOL: &'static str = "wss";
-#[allow(dead_code)]
 pub const SERVER: &'static str = "ws.crosst.chat";
-#[allow(dead_code)]
 pub const PORT: u16 = 35197;
+pub const CLIENT_NAME: &'static str = "[Chatino客户端](http://chatino.chiro.work/)";
+pub const CLIENT_KEY: &'static str = "X7t4qkI5Lz+cext";
 
 use anyhow::Result;
 use futures_util::stream::{SplitSink, SplitStream};

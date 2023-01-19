@@ -1,8 +1,8 @@
-use crate::client::ChatinoClient;
+use crate::client::{ChatinoClient, CLIENT_KEY, CLIENT_NAME};
 use crate::emote::{emote_value, EMOTES};
 use crate::message::{
-    get_chat_type, get_cmd, ChatMessage, CmdChatNormal, CmdChatWhisper, CmdInfo, CmdOnlineAdd,
-    CmdOnlineRemove, CmdOnlineSet,
+    get_chat_type, get_cmd, ChatMessage, CmdChatNormal, CmdChatWhisper, CmdGetInfoReq, CmdInfo,
+    CmdJoinReq, CmdOnlineAdd, CmdOnlineRemove, CmdOnlineSet,
 };
 use crate::ui::password::password;
 use crate::user::User;
@@ -160,9 +160,8 @@ impl Chatino {
     pub async fn background(tx: Sender<Action>, rx: Receiver<Action>) -> Result<()> {
         let tx = Arc::new(Mutex::new(tx));
         // connect to server
-        let mut client_available = false;
         let client = ChatinoClient::new().await?;
-        client_available = true;
+        let client_available = Arc::new(Mutex::new(true));
         let stop = Arc::new(Mutex::new(false));
         let (ws_send_tx, ws_send_rx) = futures_channel::mpsc::unbounded();
         let stop_send = stop.clone();
@@ -170,68 +169,94 @@ impl Chatino {
         let ws_to_ui = {
             client.reader.for_each(|message| async {
                 if let Ok(message) = message {
-                    match message {
-                        Message::Text(text) => match get_cmd(&text) {
-                            None => {}
-                            Some(cmd) => match cmd.as_str() {
-                                "onlineSet" => {
-                                    let v: CmdOnlineSet = serde_json::from_str(&text).unwrap();
-                                    tx.lock().await.send(Action::OnlineSet(v)).unwrap();
-                                }
-                                "onlineRemove" => {
-                                    let v: CmdOnlineRemove = serde_json::from_str(&text).unwrap();
-                                    tx.lock().await.send(Action::OnlineRemove(v)).unwrap();
-                                }
-                                "onlineAdd" => {
-                                    let v: CmdOnlineAdd = serde_json::from_str(&text).unwrap();
-                                    tx.lock().await.send(Action::OnlineAdd(v)).unwrap();
-                                }
-                                "info" => {
-                                    let v: CmdInfo = serde_json::from_str(&text).unwrap();
-                                    tx.lock().await.send(Action::Info(v)).unwrap();
-                                }
-                                "chat" => match get_chat_type(&text) {
-                                    None => {}
-                                    Some(type_name) => match type_name.as_str() {
-                                        "chat" => {
-                                            let v: CmdChatNormal =
-                                                serde_json::from_str(&text).unwrap();
-                                            tx.lock().await.send(Action::ChatNormal(v)).unwrap();
-                                        }
-                                        "whisper" => {
-                                            let v: CmdChatWhisper =
-                                                serde_json::from_str(&text).unwrap();
-                                            tx.lock().await.send(Action::ChatWhisper(v)).unwrap();
-                                        }
-                                        _ => {}
+                    if *client_available.lock().await {
+                        match message {
+                            Message::Text(text) => match get_cmd(&text) {
+                                None => {}
+                                Some(cmd) => match cmd.as_str() {
+                                    "onlineSet" => {
+                                        let v: CmdOnlineSet = serde_json::from_str(&text).unwrap();
+                                        tx.lock().await.send(Action::OnlineSet(v)).unwrap();
+                                    }
+                                    "onlineRemove" => {
+                                        let v: CmdOnlineRemove =
+                                            serde_json::from_str(&text).unwrap();
+                                        tx.lock().await.send(Action::OnlineRemove(v)).unwrap();
+                                    }
+                                    "onlineAdd" => {
+                                        let v: CmdOnlineAdd = serde_json::from_str(&text).unwrap();
+                                        tx.lock().await.send(Action::OnlineAdd(v)).unwrap();
+                                    }
+                                    "info" => {
+                                        let v: CmdInfo = serde_json::from_str(&text).unwrap();
+                                        tx.lock().await.send(Action::Info(v)).unwrap();
+                                    }
+                                    "chat" => match get_chat_type(&text) {
+                                        None => {}
+                                        Some(type_name) => match type_name.as_str() {
+                                            "chat" => {
+                                                let v: CmdChatNormal =
+                                                    serde_json::from_str(&text).unwrap();
+                                                tx.lock()
+                                                    .await
+                                                    .send(Action::ChatNormal(v))
+                                                    .unwrap();
+                                            }
+                                            "whisper" => {
+                                                let v: CmdChatWhisper =
+                                                    serde_json::from_str(&text).unwrap();
+                                                tx.lock()
+                                                    .await
+                                                    .send(Action::ChatWhisper(v))
+                                                    .unwrap();
+                                            }
+                                            _ => {}
+                                        },
                                     },
+                                    _ => {
+                                        tx.lock()
+                                            .await
+                                            .send(Action::RaiseError(format!(
+                                                "Unimplemented command: {}",
+                                                cmd
+                                            )))
+                                            .unwrap();
+                                    }
                                 },
-                                _ => {
-                                    tx.lock()
-                                        .await
-                                        .send(Action::RaiseError(format!(
-                                            "Unimplemented command: {}",
-                                            cmd
-                                        )))
-                                        .unwrap();
-                                }
                             },
-                        },
-                        _ => {}
+                            _ => {}
+                        }
                     }
                 }
             })
         };
         loop {
+            // let client_available = client_available.clone();
             match rx.try_recv() {
                 Ok(action) => match action {
                     Action::GetInfo => {
-                        // after this command, connection will end
-                        // if let Some(client) = client {
-                        // }
-                        // client = None;
+                        ws_send_tx
+                            .unbounded_send(Message::Text(
+                                serde_json::to_string(&CmdGetInfoReq::default()).unwrap(),
+                            ))
+                            .unwrap();
+                        // *client_available.lock().await = false;
                     }
-                    Action::Login(_, _, _) => {}
+                    Action::Login(channel, nick, password) => {
+                        ws_send_tx
+                            .unbounded_send(Message::Text(
+                                serde_json::to_string(&CmdJoinReq {
+                                    cmd: "join".to_string(),
+                                    channel,
+                                    nick,
+                                    password,
+                                    clientName: CLIENT_NAME.to_string(),
+                                    clientKey: CLIENT_KEY.to_string(),
+                                })
+                                .unwrap(),
+                            ))
+                            .unwrap();
+                    }
                     Action::SendMessage(_) => {}
                     _ => {}
                 },

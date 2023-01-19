@@ -26,93 +26,107 @@ impl Default for ChatMessage {
 #[derive(Deserialize, Default)]
 #[serde(default)]
 pub struct CmdType {
-    cmd: String,
+    pub(crate) cmd: String,
 }
 
 #[derive(Serialize)]
-pub struct CmdJoin {
-    cmd: String,
-    channel: String,
-    password: String,
-    clientName: String,
+pub struct CmdJoinReq {
+    pub(crate) cmd: String,
+    pub(crate) channel: String,
+    pub(crate) nick: String,
+    pub(crate) password: String,
+    pub(crate) clientName: String,
+    pub(crate) clientKey: String,
+}
+
+#[derive(Serialize)]
+pub struct CmdGetInfoReq {
+    pub(crate) cmd: String,
+}
+impl Default for CmdGetInfoReq {
+    fn default() -> Self {
+        Self {
+            cmd: "getinfo".to_string(),
+        }
+    }
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 pub struct CmdOnlineSet {
-    cmd: String,
-    nicks: Vec<String>,
-    trip: String,
-    key: String,
-    ver: String,
-    time: u64,
+    pub(crate) cmd: String,
+    pub(crate) nicks: Vec<String>,
+    pub(crate) trip: String,
+    pub(crate) key: String,
+    pub(crate) ver: String,
+    pub(crate) time: u64,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 pub struct CmdOnlineRemove {
-    cmd: String,
-    nick: String,
-    time: u64,
+    pub(crate) cmd: String,
+    pub(crate) nick: String,
+    pub(crate) time: u64,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 pub struct CmdOnlineAdd {
-    cmd: String,
-    nick: String,
-    trip: String,
-    utype: String,
-    level: u32,
-    client: String,
-    channel: String,
-    time: u64,
+    pub(crate) cmd: String,
+    pub(crate) nick: String,
+    pub(crate) trip: String,
+    pub(crate) utype: String,
+    pub(crate) level: u32,
+    pub(crate) client: String,
+    pub(crate) channel: String,
+    pub(crate) time: u64,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 pub struct CmdInfo {
-    cmd: String,
-    trip: String,
-    text: String,
-    time: u64,
+    pub(crate) cmd: String,
+    pub(crate) trip: String,
+    pub(crate) text: String,
+    pub(crate) time: u64,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 pub struct CmdChatType {
-    cmd: String,
+    pub(crate) cmd: String,
     #[serde(rename = "type")]
-    type_name: String,
+    pub(crate) type_name: String,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 pub struct CmdChatWhisper {
-    cmd: String,
+    pub(crate) cmd: String,
     #[serde(rename = "type")]
-    type_name: String,
-    from: String,
-    level: u32,
-    uType: String,
-    nick: String,
-    trip: String,
-    text: String,
-    time: u64,
+    pub(crate) type_name: String,
+    pub(crate) from: String,
+    pub(crate) level: u32,
+    pub(crate) uType: String,
+    pub(crate) nick: String,
+    pub(crate) trip: String,
+    pub(crate) text: String,
+    pub(crate) time: u64,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 pub struct CmdChatNormal {
-    cmd: String,
+    pub(crate) cmd: String,
     #[serde(rename = "type")]
-    type_name: String,
-    nick: String,
-    text: String,
-    level: u32,
-    member: bool,
-    admin: bool,
-    trip: String,
-    time: u64,
+    pub(crate) type_name: String,
+    pub(crate) nick: String,
+    pub(crate) text: String,
+    pub(crate) level: u32,
+    pub(crate) member: bool,
+    pub(crate) admin: bool,
+    pub(crate) trip: String,
+    pub(crate) time: u64,
 }
 
 #[derive(Deserialize, Debug, Eq, PartialEq)]
 pub struct CmdChatReq {
-    cmd: String,
-    text: String,
+    pub(crate) cmd: String,
+    pub(crate) text: String,
 }
 
 pub fn get_cmd(source: &str) -> Option<String> {
