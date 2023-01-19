@@ -4,21 +4,17 @@ pub const SERVER: &'static str = "ws.crosst.chat";
 pub const PORT: u16 = 35197;
 
 use anyhow::Result;
-use queues::Queue;
-use tokio::sync::mpsc::{channel, Receiver, Sender};
+use log::error;
+use tokio::sync::mpsc::{channel, Sender};
 use websockets::Frame;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct ChatinoClient {
     pub protocol: String,
     pub server: String,
     pub port: u16,
-    // pub send: Arc<Mutex<Queue<Frame>>>,
-    // pub recv: Arc<Mutex<Queue<Frame>>>,
-    send_tx: Sender<Result<Frame, &'static str>>,
-    send_rx: Receiver<Result<Frame, &'static str>>,
-    recv_tx: Sender<Result<Frame, &'static str>>,
-    recv_rx: Receiver<Result<Frame, &'static str>>,
+    pub send_tx: Sender<Result<Frame, &'static str>>,
+    pub recv_tx: Sender<Result<Frame, &'static str>>,
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -29,36 +25,45 @@ impl ChatinoClient {
         let port = PORT;
         let url = format!("{}://{}:{}/", protocol, server, port);
         let mut ws = websockets::WebSocket::connect(&url).await?;
-        // let send = Arc::new(Mutex::new(Queue::new()));
-        // let recv = Arc::new(Mutex::new(Queue::new()));
-        let (send_tx, send_rx) = channel(1024);
+        let (send_tx, mut send_rx) = channel(1024);
         let (recv_tx, recv_rx) = channel(1024);
-        let mut s = Self {
+        let s = Self {
             protocol,
             server,
             port,
-            // send,
-            // recv,
-            send_rx,
             send_tx,
-            recv_rx,
             recv_tx,
         };
         ws.send_text("{\"cmd\":\"getinfo\"}".to_string()).await?;
         let msg = ws.receive().await?;
         println!("msg: {:?}", msg);
 
-        tokio::spawn(async move {
-            loop {
-                match s.send_rx.recv().await {
-                    Some(v) => match v {
-                        Ok(frame) => ws.send(frame),
-                        Err(_) => {}
-                    },
-                    None => {}
-                };
-            }
-        });
+        let delay = 50;
+        {
+            // let s = s.clone();
+            tokio::spawn(async move {
+                loop {
+                    match send_rx.try_recv() {
+                        Ok(v) => match v {
+                            Ok(frame) => {
+                                match ws.send(frame).await {
+                                    Ok(_) => {}
+                                    Err(e) => {
+                                        error!("ws error: {}", e)
+                                    }
+                                };
+                            }
+                            Err(e) => {
+                                error!("bad frame: {}", e)
+                            }
+                        },
+                        Err(e) => {
+                            error!("recv send_tx err: {}", e)
+                        }
+                    }
+                }
+            });
+        }
         // ws.close(None).await?;
 
         Ok(s)
