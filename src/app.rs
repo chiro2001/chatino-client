@@ -4,6 +4,7 @@ use crate::ui::password::password;
 use crate::user::User;
 use eframe::emath::Align;
 use egui::{Layout, RichText, Ui};
+use std::sync::mpsc::{Receiver, TryRecvError};
 
 impl eframe::App for Chatino {
     /// Called each time the UI needs repainting, which may be many times per second.
@@ -121,8 +122,8 @@ impl eframe::App for Chatino {
                     ui.separator();
                     ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                         if ui.button("登录").clicked() {
-                            // self.state = State::NowLogin;
-                            self.state = State::Chatting;
+                            self.state = State::NowLogin;
+                            // self.state = State::Chatting;
                             emmit_login = true;
                         }
                     });
@@ -142,6 +143,41 @@ impl eframe::App for Chatino {
                     }
                 }
             }
+        }
+
+        // parse recv data
+        match &self.action_rx {
+            None => {}
+            Some(rx) => match rx.try_recv() {
+                Ok(action) => match action {
+                    Action::GetInfo => {}
+                    Action::OnlineSet(v) => {
+                        self.me.extra = v.trip;
+                        self.users = v.nicks;
+                        if self.state == State::NowLogin {
+                            self.state = State::Chatting;
+                        }
+                    }
+                    Action::OnlineRemove(v) => {
+                        self.users = self
+                            .users
+                            .iter()
+                            .filter(|x| x.to_string() != v.nick)
+                            .map(|x| x.to_string())
+                            .collect();
+                    }
+                    Action::OnlineAdd(v) => {
+                        self.users.push(v.nick);
+                    }
+                    Action::Info(_) => {}
+                    Action::ChatNormal(_) => {}
+                    Action::ChatWhisper(_) => {}
+                    Action::RecvMessage(_) => {}
+                    Action::RaiseError(_) => {}
+                    _ => {}
+                },
+                Err(_) => {}
+            },
         }
     }
 
@@ -191,7 +227,7 @@ impl Chatino {
                 }
                 ui.collapsing("在线的用户", |ui| {
                     self.users.iter().for_each(|user| {
-                        ui.label(&user.nick);
+                        ui.label(user);
                     });
                 });
                 ui.separator();

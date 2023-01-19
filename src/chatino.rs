@@ -73,7 +73,7 @@ pub struct Chatino {
     pub emote_key: String,
     pub settings: ChatSettings,
     #[serde(skip)]
-    pub users: Vec<User>,
+    pub users: Vec<String>,
     #[serde(skip)]
     pub action_tx: Option<Sender<Action>>,
     #[serde(skip)]
