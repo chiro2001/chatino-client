@@ -6,8 +6,10 @@ use anyhow::Result;
 use futures_channel::mpsc::UnboundedReceiver;
 use futures_util::stream::SplitStream;
 use futures_util::StreamExt;
-use log::{error, info};
+use log::{error, info, warn};
+use std::time::Duration;
 use tokio::net::TcpStream;
+use tokio::time::sleep;
 use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
 };
@@ -26,8 +28,8 @@ impl ChatinoClient {
         let protocol = PROTOCOL.to_string();
         let server = SERVER.to_string();
         let port = PORT;
-        // let url = format!("{}://{}:{}/", protocol, server, port);
-        let url = format!("{}://{}:{}/", "ws", "localhost", 12345);
+        let url = format!("{}://{}:{}/", protocol, server, port);
+        // let url = format!("{}://{}:{}/", "ws", "localhost", 12345);
         let (ws_stream, _) = connect_async(url)
             .await
             .map_err(|e| {
@@ -43,7 +45,12 @@ impl ChatinoClient {
             })
             .map(Ok)
             .forward(write);
-        tokio::spawn(client_to_ws);
+        tokio::spawn(async {
+            sleep(Duration::from_millis(5000)).await;
+            let r = client_to_ws.await;
+            warn!("client_to_ws finished");
+            r.map_err(|e| panic!("{}", e))
+        });
         Ok(Self {
             protocol,
             server,
@@ -115,34 +122,61 @@ mod test {
         let runner = async {
             let r = ChatinoClient::new(send_rx).await.unwrap();
             let reader = r.reader;
-            let ws_to_client = async {
-                sleep(Duration::from_millis(1700)).await;
-                reader
-                    .for_each(|message| async {
-                        match message {
-                            Ok(message) => {
-                                println!("recv message: {}", message)
-                            }
-                            Err(e) => {
-                                error!("err on connection: {}", e)
-                            }
-                        };
-                    })
-                    .await;
-                warn!("reader to stdout exited");
-            };
-            tokio::spawn(ws_to_client);
-            loop {
-                sleep(Duration::from_millis(1000)).await;
-                match sender.unbounded_send(Message::Text("{\"cmd\":\"getinfo\"}".to_string())) {
-                    Ok(_) => {
-                        info!("message sent")
-                    }
-                    Err(e) => {
-                        error!("sender error: {}", e)
+            // let ws_to_client = async {
+            //     sleep(Duration::from_millis(1700)).await;
+            //     // reader
+            //     //     .for_each(|message| async {
+            //     //         match message {
+            //     //             Ok(message) => {
+            //     //                 info!("recv message: {}", message)
+            //     //             }
+            //     //             Err(e) => {
+            //     //                 error!("err on connection: {}", e)
+            //     //             }
+            //     //         };
+            //     //     })
+            //     //     .await;
+            //     let ws_to_stdout = {
+            //         reader.for_each(|message| async {
+            //             let data = message.unwrap().into_data();
+            //             tokio::io::stdout().write_all(&data).await.unwrap();
+            //         })
+            //     };
+            //     pin_mut!(ws_to_stdout);
+            //     ws_to_stdout.await;
+            //     warn!("reader to stdout exited");
+            // };
+            // tokio::spawn(ws_to_client);
+
+            let send_async = async move {
+                loop {
+                    sleep(Duration::from_millis(1000)).await;
+                    match sender.unbounded_send(Message::Text("{\"cmd\":\"getinfo\"}".to_string()))
+                    {
+                        Ok(_) => {
+                            info!("message sent");
+                        }
+                        Err(e) => {
+                            error!("sender error: {}", e);
+                            panic!("{}", e);
+                        }
                     }
                 }
-            }
+            };
+            // tokio::spawn(send_async);
+
+            let ws_to_stdout = {
+                let r = reader.for_each(|message| async {
+                    let data = message.unwrap().into_data();
+                    tokio::io::stdout().write_all(&data).await.unwrap();
+                });
+                warn!("ws_to_stdout finished");
+                r
+            };
+            pin_mut!(ws_to_stdout, send_async);
+            // ws_to_stdout.await;
+            future::join(ws_to_stdout, send_async).await;
+            warn!("all finished");
         };
         let rt = tokio::runtime::Runtime::new().unwrap();
         rt.block_on(runner);
