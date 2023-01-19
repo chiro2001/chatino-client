@@ -4,6 +4,7 @@ use crate::ui::password::password;
 use crate::user::User;
 use eframe::emath::Align;
 use egui::{FontData, FontDefinitions, FontFamily, Layout, RichText, Ui};
+use crate::client::ChatinoClient;
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
@@ -53,6 +54,8 @@ pub struct Chatino {
     pub settings: ChatSettings,
     #[serde(skip)]
     pub users: Vec<User>,
+    #[serde(skip)]
+    pub client: Option<ChatinoClient>
 }
 
 impl Default for Chatino {
@@ -67,6 +70,7 @@ impl Default for Chatino {
             settings: Default::default(),
             users: vec![],
             me: Default::default(),
+            client: None,
         }
     }
 }

@@ -1,5 +1,8 @@
+#[allow(dead_code)]
 pub const PROTOCOL: &'static str = "wss";
+#[allow(dead_code)]
 pub const SERVER: &'static str = "ws.crosst.chat";
+#[allow(dead_code)]
 pub const PORT: u16 = 35197;
 
 use anyhow::Result;
@@ -46,6 +49,7 @@ impl ChatinoClient {
 }
 
 #[cfg(not(target_arch = "wasm32"))]
+#[allow(unused_imports)]
 mod test {
     use crate::client::{ChatinoClient, PORT, PROTOCOL, SERVER};
     use anyhow::Result;
