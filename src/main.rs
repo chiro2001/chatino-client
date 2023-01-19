@@ -7,6 +7,7 @@ mod app;
 mod ui;
 mod message;
 mod emote;
+mod user;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]

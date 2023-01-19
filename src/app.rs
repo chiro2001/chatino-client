@@ -1,8 +1,9 @@
 use crate::emote::{emote_value, EMOTES};
 use crate::message::Message;
 use crate::ui::password::password;
+use crate::user::User;
 use eframe::emath::Align;
-use egui::{FontData, FontDefinitions, FontFamily, Layout};
+use egui::{FontData, FontDefinitions, FontFamily, Layout, RichText};
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
@@ -12,30 +13,57 @@ pub enum State {
     Chatting,
 }
 
+#[derive(serde::Deserialize, serde::Serialize)]
+#[serde(default)]
+pub struct ChatSettings {
+    pub sidebar_always_on: bool,
+    pub notification: bool,
+    pub show_user_enter_exit: bool,
+    pub enable_code_highlight: bool,
+    pub enable_image: bool,
+}
+
+impl Default for ChatSettings {
+    fn default() -> Self {
+        Self {
+            sidebar_always_on: false,
+            notification: true,
+            show_user_enter_exit: true,
+            enable_code_highlight: true,
+            enable_image: true,
+        }
+    }
+}
+
 /// We derive Deserialize/Serialize so we can persist app state on shutdown.
 #[derive(serde::Deserialize, serde::Serialize)]
 #[serde(default)] // if we add new fields, give them default values when deserializing old state
 pub struct Chatino {
     pub room: String,
-    pub nick: String,
+    pub me: User,
     pub state: State,
     pub password: String,
     #[serde(skip)]
     pub messages: Vec<Message>,
     pub input: String,
     pub emote_key: String,
+    pub settings: ChatSettings,
+    #[serde(skip)]
+    pub users: Vec<User>,
 }
 
 impl Default for Chatino {
     fn default() -> Self {
         Self {
             room: "公共聊天室".to_string(),
-            nick: "test".to_owned(),
             state: State::default(),
             password: "".to_owned(),
             messages: vec![],
             input: "".to_string(),
             emote_key: EMOTES.first().unwrap().0.to_string(),
+            settings: Default::default(),
+            users: vec![],
+            me: Default::default(),
         }
     }
 }
@@ -80,8 +108,39 @@ impl eframe::App for Chatino {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::SidePanel::right("side_panel").show(ctx, |ui| {
             ui.add_enabled_ui(self.state == State::Chatting, |ui| {
+                ui.heading("十字街");
+                ui.label("一个简洁轻小的聊天网站");
                 egui::warn_if_debug_build(ui);
-                ui.heading("侧边栏");
+                ui.separator();
+                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                    ui.label("邮箱：");
+                    ui.hyperlink("mailto:mail@to.henrize.kim");
+                });
+                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                    ui.label("切换主题：");
+                    egui::widgets::global_dark_light_mode_switch(ui);
+                });
+                ui.separator();
+                ui.label("帐号管理");
+                ui.label(RichText::new("已登录的帐号：").small());
+                ui.label(RichText::new(self.me.to_string()).small());
+                if ui.button("清除帐号信息").clicked() {
+                    self.me = User::default();
+                    self.state = State::Login;
+                }
+                ui.collapsing("在线的用户", |ui| {
+                    self.users.iter().for_each(|user| {
+                        ui.label(&user.nick);
+                    });
+                });
+                ui.separator();
+                ui.label("设置");
+                ui.checkbox(&mut self.settings.sidebar_always_on, "侧边栏常开");
+                ui.checkbox(&mut self.settings.notification, "接收消息通知");
+                ui.checkbox(&mut self.settings.show_user_enter_exit, "用户加入/退出提醒");
+                ui.checkbox(&mut self.settings.enable_code_highlight, "启用代码高亮");
+                ui.checkbox(&mut self.settings.enable_image, "查看图片消息");
+
                 if ui.button("清除数据").clicked() {
                     self.state = Default::default();
                     *ui.ctx().memory() = Default::default();
@@ -156,7 +215,7 @@ impl eframe::App for Chatino {
                         .striped(true)
                         .show(ui, |ui| {
                             ui.label("昵称");
-                            ui.text_edit_singleline(&mut self.nick);
+                            ui.text_edit_singleline(&mut self.me.nick);
                             ui.end_row();
                             ui.label("密码(可留空)");
                             ui.add(password(&mut self.password));
