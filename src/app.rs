@@ -1,6 +1,6 @@
 use crate::chatino::{Action, Chatino, State};
 use crate::emote::{emote_value, EMOTES};
-use crate::message::ChatMessage;
+use crate::message::{ChatMessage, CmdChatReq};
 use crate::ui::password::password;
 use crate::user::User;
 use eframe::emath::Align;
@@ -42,7 +42,17 @@ impl eframe::App for Chatino {
                         });
                         ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
                             if ui.button("<发送>").clicked() {
-                                self.input.clear();
+                                match &self.action_tx {
+                                    None => {}
+                                    Some(tx) => {
+                                        tx.send(Action::SendChat(CmdChatReq {
+                                            cmd: "chat".to_string(),
+                                            text: self.input.to_string(),
+                                        }))
+                                        .unwrap();
+                                        self.input.clear();
+                                    }
+                                };
                             }
                             egui::ComboBox::from_id_source("emote_select")
                                 .selected_text(&self.emote_key)

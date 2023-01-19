@@ -130,7 +130,7 @@ pub struct CmdChatNormal {
     pub(crate) time: u64,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq, Default)]
+#[derive(Serialize, Debug, Eq, PartialEq, Default)]
 #[serde(default)]
 pub struct CmdChatReq {
     pub(crate) cmd: String,

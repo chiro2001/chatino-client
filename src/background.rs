@@ -120,7 +120,11 @@ pub async fn background(tx: Sender<Action>, rx: Receiver<Action>) -> Result<()> 
                             ))
                             .unwrap();
                     }
-                    Action::SendChat(_) => {}
+                    Action::SendChat(v) => {
+                        ws_send_tx
+                            .unbounded_send(Message::Text(serde_json::to_string(&v).unwrap()))
+                            .unwrap();
+                    }
                     _ => {}
                 },
                 Err(_) => {}
