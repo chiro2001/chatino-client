@@ -83,6 +83,18 @@ impl eframe::App for Chatino {
             });
         });
 
+        egui::TopBottomPanel::bottom("bottom_panel")
+            .resizable(false)
+            .min_height(0.0)
+            .show(ctx, |ui| {
+                ui.vertical_centered(|ui| {
+                    ui.with_layout(Layout::top_down_justified(Align::Max), |ui| {
+                        ui.text_edit_multiline(&mut self.input);
+                        if ui.button("发送").clicked() {}
+                    });
+                });
+            });
+
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.add_enabled_ui(self.state == State::Chatting, |ui| {
@@ -91,20 +103,15 @@ impl eframe::App for Chatino {
                 });
                 ui.separator();
                 egui::ScrollArea::vertical().show(ui, |ui| {
-                    ui.with_layout(egui::Layout::top_down_justified(egui::Align::LEFT), |ui| {
-                        for i in 0..100 {
-                            // let _ = ui.button("test");
-                            ui.label(format!("test no. {}", i));
-                        }
-                    });
-                });
-            });
-        });
-        egui::TopBottomPanel::bottom("bottom_panel").show(ctx, |ui| {
-            ui.vertical_centered(|ui| {
-                ui.with_layout(Layout::top_down_justified(Align::Max), |ui| {
-                    ui.text_edit_multiline(&mut self.input);
-                    if ui.button("发送").clicked() {}
+                    ui.with_layout(
+                        egui::Layout::top_down(egui::Align::LEFT).with_cross_justify(true),
+                        |ui| {
+                            for i in 0..100 {
+                                // let _ = ui.button("test");
+                                ui.label(format!("test no. {}", i));
+                            }
+                        },
+                    );
                 });
             });
         });
