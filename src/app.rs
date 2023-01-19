@@ -1,5 +1,5 @@
+use crate::ui::password::password;
 use egui::{Button, FontData, FontDefinitions, FontFamily};
-use crate::ui::password::{password, password_ui};
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
@@ -38,10 +38,19 @@ impl Chatino {
 
         let mut fonts = FontDefinitions::default();
         let font_name = "ali";
-        fonts.font_data.insert(font_name.to_owned(), FontData::from_static(include_bytes!("../assets/Ali_Puhui_Medium.ttf")));
-        fonts.families.get_mut(&FontFamily::Proportional).unwrap()
+        fonts.font_data.insert(
+            font_name.to_owned(),
+            FontData::from_static(include_bytes!("../assets/Ali_Puhui_Medium.ttf")),
+        );
+        fonts
+            .families
+            .get_mut(&FontFamily::Proportional)
+            .unwrap()
             .insert(0, font_name.to_owned());
-        fonts.families.get_mut(&FontFamily::Monospace).unwrap()
+        fonts
+            .families
+            .get_mut(&FontFamily::Monospace)
+            .unwrap()
             .push(font_name.to_owned());
         cc.egui_ctx.set_fonts(fonts);
 
