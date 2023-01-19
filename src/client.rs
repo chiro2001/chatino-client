@@ -3,13 +3,10 @@ pub const SERVER: &'static str = "ws.crosst.chat";
 pub const PORT: u16 = 35197;
 
 use anyhow::Result;
-use futures_channel::mpsc::UnboundedReceiver;
 use futures_util::stream::{SplitSink, SplitStream};
 use futures_util::StreamExt;
-use log::{error, info, warn};
-use std::time::Duration;
+use log::error;
 use tokio::net::TcpStream;
-use tokio::time::sleep;
 use tokio_tungstenite::{
     connect_async, tungstenite::protocol::Message, MaybeTlsStream, WebSocketStream,
 };
@@ -30,7 +27,6 @@ impl ChatinoClient {
         let server = SERVER.to_string();
         let port = PORT;
         let url = format!("{}://{}:{}/", protocol, server, port);
-        // let url = format!("{}://{}:{}/", "ws", "localhost", 12345);
         let (ws_stream, _) = connect_async(url)
             .await
             .map_err(|e| {
@@ -57,14 +53,14 @@ mod test {
     use log::{error, info, warn};
     use std::sync::Arc;
     use std::time::Duration;
-    use tokio::io::{AsyncReadExt, AsyncWriteExt};
     use tokio::sync::Mutex;
     use tokio::time::sleep;
     use tokio_tungstenite::connect_async;
     use tokio_tungstenite::tungstenite::Message;
 
+    #[allow(dead_code)]
     async fn read_stdin(tx: futures_channel::mpsc::UnboundedSender<Message>) {
-        loop {
+        for _ in 0..3 {
             // let mut stdin = tokio::io::stdin();
             // let mut buf = vec![0; 1024];
             // let n = match stdin.read(&mut buf).await {
@@ -89,9 +85,7 @@ mod test {
         let stop_in_runner = stop.clone();
         let runner = async move {
             let url = format!("{}://{}:{}/", PROTOCOL, SERVER, PORT);
-            // let url = format!("{}://{}:{}/", "ws", "localhost", 12345);
             let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
-            // tokio::spawn(read_stdin(stdin_tx));
             let stop = stop_in_runner.clone();
             tokio::spawn(async move {
                 let mut i = 0;
@@ -115,19 +109,27 @@ mod test {
             let (write, read) = ws_stream.split();
 
             let stdin_to_ws = stdin_rx.map(Ok).forward(write);
+            let stop_stdout = stop_in_runner.clone();
             let ws_to_stdout = {
                 let r = read.for_each(|message| async {
                     // let data = message.unwrap().into_data();
                     // tokio::io::stdout().write_all(&data).await.unwrap();
-                    info!("ws_to_stdout: message = {}", message.unwrap());
+                    match &message.unwrap() {
+                        Message::Close(_) => {
+                            *stop_stdout.lock().await = true;
+                        }
+                        message => {
+                            info!("ws_to_stdout: message = {}", message);
+                        }
+                    }
                 });
                 warn!("ws_to_stdout start? finished");
                 r
             };
 
             pin_mut!(stdin_to_ws, ws_to_stdout);
-            // future::select(stdin_to_ws, ws_to_stdout).await;
-            future::join(stdin_to_ws, ws_to_stdout).await;
+            future::select(stdin_to_ws, ws_to_stdout).await;
+            // future::join(stdin_to_ws, ws_to_stdout).await;
             while !*stop_in_runner.lock().await {
                 sleep(Duration::from_millis(100)).await;
             }
@@ -157,7 +159,6 @@ mod test {
                         }
                         Err(e) => {
                             error!("sender error: {}", e);
-                            // panic!("{}", e);
                             *stop_send.lock().await = true;
                         }
                     }
@@ -165,7 +166,6 @@ mod test {
                 *stop_send.lock().await = true;
             };
             tokio::spawn(send_async);
-            // tokio::spawn(read_stdin(sender));
             let client_to_ws = send_rx
                 .map(|x| {
                     info!("client_to_ws: {}", x);
@@ -173,20 +173,26 @@ mod test {
                 })
                 .map(Ok)
                 .forward(r.writer);
-            let ws_to_stdout = {
+            let stop_log = stop.clone();
+            let ws_to_log = {
                 let r = r.reader.for_each(|message| async {
-                    // let data = message.unwrap().into_data();
-                    // tokio::io::stdout().write_all(&data).await.unwrap();
-                    info!("ws_to_stdout: message = {}", message.unwrap());
+                    match &message.unwrap() {
+                        Message::Close(_) => {
+                            *stop_log.lock().await = true;
+                        }
+                        message => {
+                            info!("ws_to_stdout: message = {}", message);
+                        }
+                    }
                 });
                 warn!("ws_to_stdout start? finished");
                 r
             };
-            pin_mut!(client_to_ws, ws_to_stdout);
+            pin_mut!(client_to_ws, ws_to_log);
             // ws_to_stdout.await;
-            future::select(ws_to_stdout, client_to_ws).await;
+            future::select(ws_to_log, client_to_ws).await;
             // future::join(ws_to_stdout, client_to_ws).await;
-            warn!("sleeping...");
+            warn!("waiting flag");
             // sleep(Duration::from_millis(10000)).await;
             while !*stop.lock().await {
                 sleep(Duration::from_millis(100)).await;
