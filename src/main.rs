@@ -3,15 +3,19 @@
 
 use crate::app::Chatino;
 
+use anyhow::Result;
+
 mod app;
-mod ui;
-mod message;
+mod client;
 mod emote;
+mod message;
+mod ui;
 mod user;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
-fn main() {
+#[tokio::main]
+async fn main() -> Result<()> {
     // Log to stdout (if you run with `RUST_LOG=debug`).
     tracing_subscriber::fmt::init();
 
@@ -21,6 +25,7 @@ fn main() {
         native_options,
         Box::new(|cc| Box::new(Chatino::new(cc))),
     );
+    Ok(())
 }
 
 // when compiling to web using trunk.
@@ -40,7 +45,7 @@ fn main() {
             web_options,
             Box::new(|cc| Box::new(Chatino::new(cc))),
         )
-            .await
-            .expect("failed to start eframe");
+        .await
+        .expect("failed to start eframe");
     });
 }
