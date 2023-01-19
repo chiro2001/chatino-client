@@ -3,7 +3,7 @@ use crate::message::Message;
 use crate::ui::password::password;
 use crate::user::User;
 use eframe::emath::Align;
-use egui::{FontData, FontDefinitions, FontFamily, Layout, RichText};
+use egui::{FontData, FontDefinitions, FontFamily, Layout, RichText, Ui};
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
@@ -56,7 +56,7 @@ pub struct Chatino {
 impl Default for Chatino {
     fn default() -> Self {
         Self {
-            room: "公共聊天室".to_string(),
+            room: "".to_string(),
             state: State::default(),
             password: "".to_owned(),
             messages: vec![],
@@ -107,48 +107,16 @@ impl eframe::App for Chatino {
     /// Called each time the UI needs repainting, which may be many times per second.
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
-        egui::SidePanel::right("side_panel").show(ctx, |ui| {
-            ui.add_enabled_ui(self.state != State::Login, |ui| {
-                ui.heading("十字街");
-                ui.label("一个简洁轻小的聊天网站");
-                egui::warn_if_debug_build(ui);
-                ui.separator();
-                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                    ui.label("邮箱：");
-                    ui.hyperlink("mailto:mail@to.henrize.kim");
-                });
-                ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
-                    ui.label("切换主题：");
-                    egui::widgets::global_dark_light_mode_switch(ui);
-                });
-                ui.separator();
-                ui.label("帐号管理");
-                ui.label(RichText::new("已登录的帐号：").small());
-                ui.label(RichText::new(self.me.to_string()).small());
-                if ui.button("清除帐号信息").clicked() {
-                    self.me = User::default();
-                    self.state = State::Login;
-                }
-                ui.collapsing("在线的用户", |ui| {
-                    self.users.iter().for_each(|user| {
-                        ui.label(&user.nick);
-                    });
-                });
-                ui.separator();
-                ui.label("设置");
-                ui.checkbox(&mut self.settings.sidebar_always_on, "侧边栏常开");
-                ui.checkbox(&mut self.settings.notification, "接收消息通知");
-                ui.checkbox(&mut self.settings.show_user_enter_exit, "用户加入/退出提醒");
-                ui.checkbox(&mut self.settings.enable_code_highlight, "启用代码高亮");
-                ui.checkbox(&mut self.settings.enable_image, "查看图片消息");
-
-                if ui.button("清除数据").clicked() {
-                    self.state = Default::default();
-                    *ui.ctx().memory() = Default::default();
-                    ui.close_menu();
-                }
+        if self.settings.sidebar_always_on {
+            egui::SidePanel::right("side_panel").show(ctx, |ui| {
+                self.sidebar(ui);
             });
-        });
+        } else {
+            egui::Window::new("💠")
+                .show(ctx, |ui| {
+                self.sidebar(ui);
+            });
+        }
 
         egui::TopBottomPanel::bottom("bottom_panel")
             .resizable(false)
@@ -192,7 +160,11 @@ impl eframe::App for Chatino {
             // The central panel the region left after adding TopPanel's and SidePanel's
             ui.add_enabled_ui(self.state != State::Login, |ui| {
                 ui.vertical_centered(|ui| {
-                    ui.heading(&self.room);
+                    ui.heading(if self.room.is_empty() {
+                        "主页"
+                    } else {
+                        &self.room
+                    });
                 });
                 ui.separator();
                 egui::ScrollArea::vertical().show(ui, |ui| {
@@ -238,5 +210,50 @@ impl eframe::App for Chatino {
     /// Called by the frame work to save state before shutdown.
     fn save(&mut self, storage: &mut dyn eframe::Storage) {
         eframe::set_value(storage, eframe::APP_KEY, self);
+    }
+}
+
+impl Chatino {
+    fn sidebar(&mut self, ui: &mut Ui) {
+        ui.add_enabled_ui(self.state != State::Login, |ui| {
+            ui.heading("十字街");
+            ui.label("一个简洁轻小的聊天网站");
+            egui::warn_if_debug_build(ui);
+            ui.separator();
+            ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                ui.label("邮箱：");
+                ui.hyperlink("mailto:mail@to.henrize.kim");
+            });
+            ui.with_layout(Layout::left_to_right(Align::Min), |ui| {
+                ui.label("切换主题：");
+                egui::widgets::global_dark_light_mode_switch(ui);
+            });
+            ui.separator();
+            ui.label("帐号管理");
+            ui.label(RichText::new("已登录的帐号：").small());
+            ui.label(RichText::new(self.me.to_string()).small());
+            if ui.button("清除帐号信息").clicked() {
+                self.me = User::default();
+                self.state = State::Login;
+            }
+            ui.collapsing("在线的用户", |ui| {
+                self.users.iter().for_each(|user| {
+                    ui.label(&user.nick);
+                });
+            });
+            ui.separator();
+            ui.label("设置");
+            ui.checkbox(&mut self.settings.sidebar_always_on, "侧边栏常开");
+            ui.checkbox(&mut self.settings.notification, "接收消息通知");
+            ui.checkbox(&mut self.settings.show_user_enter_exit, "用户加入/退出提醒");
+            ui.checkbox(&mut self.settings.enable_code_highlight, "启用代码高亮");
+            ui.checkbox(&mut self.settings.enable_image, "查看图片消息");
+
+            if ui.button("清除数据").clicked() {
+                self.state = Default::default();
+                *ui.ctx().memory() = Default::default();
+                ui.close_menu();
+            }
+        });
     }
 }
