@@ -7,10 +7,6 @@ pub struct TemplateApp {
     // this how you opt-out of serialization of a member
     #[serde(skip)]
     value: f32,
-    // shown signals
-    signal_paths: Vec<Vec<String>>,
-    #[serde(skip)]
-    signals: Vec<IdCode>,
 }
 
 impl Default for TemplateApp {
@@ -19,8 +15,6 @@ impl Default for TemplateApp {
             // Example stuff:
             label: "Hello World!".to_owned(),
             value: 2.7,
-            signal_paths: vec![],
-            signals: vec![],
         }
     }
 }
@@ -57,20 +51,20 @@ impl eframe::App for TemplateApp {
         // Tip: a good default choice is to just keep the `CentralPanel`.
         // For inspiration and more examples, go to https://emilk.github.io/egui
 
-        #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
-        egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
-            // The top panel is often a good place for a menu bar:
-            egui::menu::bar(ui, |ui| {
-                ui.menu_button("File", |ui| {
-                    if ui.button("Quit").clicked() {
-                        _frame.close();
-                    }
-                });
-            });
-        });
+        // #[cfg(not(target_arch = "wasm32"))] // no File->Quit on web pages!
+        // egui::TopBottomPanel::top("top_panel").show(ctx, |ui| {
+        //     // The top panel is often a good place for a menu bar:
+        //     egui::menu::bar(ui, |ui| {
+        //         ui.menu_button("File", |ui| {
+        //             if ui.button("Quit").clicked() {
+        //                 _frame.close();
+        //             }
+        //         });
+        //     });
+        // });
 
         egui::SidePanel::left("side_panel").show(ctx, |ui| {
-            ui.heading("Side Panel");
+            ui.heading("侧边栏");
 
             ui.horizontal(|ui| {
                 ui.label("Write something: ");
