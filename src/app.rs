@@ -7,9 +7,9 @@ use egui::{FontData, FontDefinitions, FontFamily, Layout, RichText};
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
-    // #[default]
-    Login,
     #[default]
+    Index,
+    Login,
     Chatting,
 }
 
@@ -41,6 +41,7 @@ impl Default for ChatSettings {
 pub struct Chatino {
     pub room: String,
     pub me: User,
+    #[serde(skip)]
     pub state: State,
     pub password: String,
     #[serde(skip)]
@@ -107,7 +108,7 @@ impl eframe::App for Chatino {
     /// Put your widgets into a `SidePanel`, `TopPanel`, `CentralPanel`, `Window` or `Area`.
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
         egui::SidePanel::right("side_panel").show(ctx, |ui| {
-            ui.add_enabled_ui(self.state == State::Chatting, |ui| {
+            ui.add_enabled_ui(self.state != State::Login, |ui| {
                 ui.heading("十字街");
                 ui.label("一个简洁轻小的聊天网站");
                 egui::warn_if_debug_build(ui);
@@ -153,41 +154,43 @@ impl eframe::App for Chatino {
             .resizable(false)
             .min_height(0.0)
             .show(ctx, |ui| {
-                ui.vertical_centered(|ui| {
-                    ui.with_layout(Layout::top_down_justified(Align::Max), |ui| {
-                        ui.text_edit_multiline(&mut self.input);
-                    });
-                });
-                ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                    if ui.button("<发送>").clicked() {
-                        self.input.clear();
-                    }
-                    egui::ComboBox::from_id_source("emote_select")
-                        .selected_text(&self.emote_key)
-                        .show_ui(ui, |ui| {
-                            EMOTES.iter().for_each(|(k, _v)| {
-                                if ui
-                                    .selectable_value(
-                                        &mut self.emote_key,
-                                        k.to_string(),
-                                        k.to_string(),
-                                    )
-                                    .changed()
-                                {
-                                    self.input += emote_value(&self.emote_key);
-                                };
-                            });
+                ui.add_enabled_ui(self.state != State::Login, |ui| {
+                    ui.vertical_centered(|ui| {
+                        ui.with_layout(Layout::top_down_justified(Align::Max), |ui| {
+                            ui.text_edit_multiline(&mut self.input);
                         });
-                    if ui.button(&self.emote_key).clicked() {
-                        self.input += emote_value(&self.emote_key);
-                    }
-                    if ui.button("图片").clicked() {}
+                    });
+                    ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
+                        if ui.button("<发送>").clicked() {
+                            self.input.clear();
+                        }
+                        egui::ComboBox::from_id_source("emote_select")
+                            .selected_text(&self.emote_key)
+                            .show_ui(ui, |ui| {
+                                EMOTES.iter().for_each(|(k, _v)| {
+                                    if ui
+                                        .selectable_value(
+                                            &mut self.emote_key,
+                                            k.to_string(),
+                                            k.to_string(),
+                                        )
+                                        .changed()
+                                    {
+                                        self.input += emote_value(&self.emote_key);
+                                    };
+                                });
+                            });
+                        if ui.button(&self.emote_key).clicked() {
+                            self.input += emote_value(&self.emote_key);
+                        }
+                        if ui.button("图片").clicked() {}
+                    });
                 });
             });
 
         egui::CentralPanel::default().show(ctx, |ui| {
             // The central panel the region left after adding TopPanel's and SidePanel's
-            ui.add_enabled_ui(self.state == State::Chatting, |ui| {
+            ui.add_enabled_ui(self.state != State::Login, |ui| {
                 ui.vertical_centered(|ui| {
                     ui.heading(&self.room);
                 });
@@ -222,9 +225,11 @@ impl eframe::App for Chatino {
                             ui.end_row();
                         });
                     ui.separator();
-                    if ui.button("登录").clicked() {
-                        self.state = State::Chatting
-                    }
+                    ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
+                        if ui.button("登录").clicked() {
+                            self.state = State::Chatting
+                        }
+                    });
                 });
             });
         }
