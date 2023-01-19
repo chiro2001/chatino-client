@@ -1,9 +1,12 @@
 use crate::client::ChatinoClient;
 use crate::emote::{emote_value, EMOTES};
-use crate::message::ChatMessage;
+use crate::message::{
+    get_chat_type, get_cmd, ChatMessage, CmdChatNormal, CmdChatWhisper, CmdInfo, CmdOnlineAdd,
+    CmdOnlineRemove, CmdOnlineSet,
+};
 use crate::ui::password::password;
 use crate::user::User;
-use anyhow::Result;
+use anyhow::{anyhow, Result};
 use eframe::emath::Align;
 use egui::{FontData, FontDefinitions, FontFamily, Layout, RichText, Ui};
 use futures_util::StreamExt;
@@ -24,11 +27,19 @@ pub enum State {
     Chatting,
 }
 
+#[derive(Debug, Eq, PartialEq)]
 pub enum Action {
     GetInfo,
+    OnlineSet(CmdOnlineSet),
+    OnlineRemove(CmdOnlineRemove),
+    OnlineAdd(CmdOnlineAdd),
+    Info(CmdInfo),
+    ChatNormal(CmdChatNormal),
+    ChatWhisper(CmdChatWhisper),
     Login(String, String, String),
     SendMessage(ChatMessage),
     RecvMessage(ChatMessage),
+    RaiseError(String),
 }
 
 #[derive(serde::Deserialize, serde::Serialize)]
@@ -125,7 +136,9 @@ impl Chatino {
         // start new thread with one message channel
         let (action_ui_tx, action_run_rx) = mpsc::channel();
         let (action_run_tx, action_ui_rx) = mpsc::channel();
-        tokio::spawn(Chatino::background(action_run_tx, action_run_rx));
+        tokio::spawn(async {
+            Chatino::background(action_run_tx, action_run_rx).await;
+        });
 
         // Load previous app state (if any).
         // Note that you must enable the `persistence` feature for this to work.
@@ -145,6 +158,7 @@ impl Chatino {
     }
 
     pub async fn background(tx: Sender<Action>, rx: Receiver<Action>) -> Result<()> {
+        let tx = Arc::new(Mutex::new(tx));
         // connect to server
         let mut client_available = false;
         let client = ChatinoClient::new().await?;
@@ -152,30 +166,57 @@ impl Chatino {
         let stop = Arc::new(Mutex::new(false));
         let (ws_send_tx, ws_send_rx) = futures_channel::mpsc::unbounded();
         let stop_send = stop.clone();
-        // let send_async = async move {
-        //     loop {
-        //         sleep(Duration::from_millis(1000)).await;
-        //         match ws_send_tx.unbounded_send(Message::Text("{\"cmd\":\"getinfo\"}".to_string()))
-        //         {
-        //             Ok(_) => {
-        //                 info!("message sent");
-        //             }
-        //             Err(e) => {
-        //                 error!("sender error: {}", e);
-        //                 *(stop_send.lock().await) = true;
-        //             }
-        //         }
-        //     }
-        // };
-        // tokio::spawn(send_async);
         let client_to_ws = ws_send_rx.map(Ok).forward(client.writer);
         let ws_to_ui = {
             client.reader.for_each(|message| async {
                 if let Ok(message) = message {
                     match message {
-                        Message::Text(text) => {
-
-                        }
+                        Message::Text(text) => match get_cmd(&text) {
+                            None => {}
+                            Some(cmd) => match cmd.as_str() {
+                                "onlineSet" => {
+                                    let v: CmdOnlineSet = serde_json::from_str(&text).unwrap();
+                                    tx.lock().await.send(Action::OnlineSet(v)).unwrap();
+                                }
+                                "onlineRemove" => {
+                                    let v: CmdOnlineRemove = serde_json::from_str(&text).unwrap();
+                                    tx.lock().await.send(Action::OnlineRemove(v)).unwrap();
+                                }
+                                "onlineAdd" => {
+                                    let v: CmdOnlineAdd = serde_json::from_str(&text).unwrap();
+                                    tx.lock().await.send(Action::OnlineAdd(v)).unwrap();
+                                }
+                                "info" => {
+                                    let v: CmdInfo = serde_json::from_str(&text).unwrap();
+                                    tx.lock().await.send(Action::Info(v)).unwrap();
+                                }
+                                "chat" => match get_chat_type(&text) {
+                                    None => {}
+                                    Some(type_name) => match type_name.as_str() {
+                                        "chat" => {
+                                            let v: CmdChatNormal =
+                                                serde_json::from_str(&text).unwrap();
+                                            tx.lock().await.send(Action::ChatNormal(v)).unwrap();
+                                        }
+                                        "whisper" => {
+                                            let v: CmdChatWhisper =
+                                                serde_json::from_str(&text).unwrap();
+                                            tx.lock().await.send(Action::ChatWhisper(v)).unwrap();
+                                        }
+                                        _ => {}
+                                    },
+                                },
+                                _ => {
+                                    tx.lock()
+                                        .await
+                                        .send(Action::RaiseError(format!(
+                                            "Unimplemented command: {}",
+                                            cmd
+                                        )))
+                                        .unwrap();
+                                }
+                            },
+                        },
                         _ => {}
                     }
                 }
