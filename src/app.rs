@@ -1,10 +1,10 @@
+use crate::client::ChatinoClient;
 use crate::emote::{emote_value, EMOTES};
 use crate::message::Message;
 use crate::ui::password::password;
 use crate::user::User;
 use eframe::emath::Align;
 use egui::{FontData, FontDefinitions, FontFamily, Layout, RichText, Ui};
-use crate::client::ChatinoClient;
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
@@ -23,6 +23,7 @@ pub struct ChatSettings {
     pub show_user_enter_exit: bool,
     pub enable_code_highlight: bool,
     pub enable_image: bool,
+    pub editor_single_line: bool,
 }
 
 impl Default for ChatSettings {
@@ -34,6 +35,7 @@ impl Default for ChatSettings {
             show_user_enter_exit: true,
             enable_code_highlight: true,
             enable_image: true,
+            editor_single_line: true,
         }
     }
 }
@@ -55,7 +57,7 @@ pub struct Chatino {
     #[serde(skip)]
     pub users: Vec<User>,
     #[serde(skip)]
-    pub client: Option<ChatinoClient>
+    pub client: Option<ChatinoClient>,
 }
 
 impl Default for Chatino {
@@ -132,7 +134,11 @@ impl eframe::App for Chatino {
                 ui.add_enabled_ui(self.state != State::Login, |ui| {
                     ui.vertical_centered(|ui| {
                         ui.with_layout(Layout::top_down_justified(Align::Max), |ui| {
-                            ui.text_edit_multiline(&mut self.input);
+                            if self.settings.editor_single_line {
+                                ui.text_edit_singleline(&mut self.input);
+                            } else {
+                                ui.text_edit_multiline(&mut self.input);
+                            }
                         });
                     });
                     ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
@@ -267,6 +273,7 @@ impl Chatino {
             ui.checkbox(&mut self.settings.show_user_enter_exit, "用户加入/退出提醒");
             ui.checkbox(&mut self.settings.enable_code_highlight, "启用代码高亮");
             ui.checkbox(&mut self.settings.enable_image, "查看图片消息");
+            ui.checkbox(&mut self.settings.editor_single_line, "单行编辑回车发送");
 
             if ui.button("清除数据").clicked() {
                 self.state = Default::default();
