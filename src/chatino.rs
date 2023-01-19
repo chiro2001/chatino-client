@@ -1,9 +1,6 @@
 use crate::background::background;
 use crate::emote::EMOTES;
-use crate::message::{
-    get_cmd, ChatMessage, CmdChatNormal, CmdChatWhisper, CmdGetInfoReq, CmdInfo, CmdJoinReq,
-    CmdOnlineAdd, CmdOnlineRemove, CmdOnlineSet,
-};
+use crate::message::*;
 use crate::user::User;
 use egui::{FontData, FontDefinitions, FontFamily};
 use std::sync::mpsc;
@@ -11,8 +8,9 @@ use std::sync::mpsc::{Receiver, Sender};
 
 #[derive(Default, serde::Deserialize, serde::Serialize, PartialEq)]
 pub enum State {
-    #[default]
+    // #[default]
     Index,
+    #[default]
     Login,
     NowLogin,
     Chatting,

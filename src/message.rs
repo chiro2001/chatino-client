@@ -51,7 +51,8 @@ impl Default for CmdGetInfoReq {
     }
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Default)]
+#[serde(default)]
 pub struct CmdOnlineSet {
     pub(crate) cmd: String,
     pub(crate) nicks: Vec<String>,
@@ -61,14 +62,16 @@ pub struct CmdOnlineSet {
     pub(crate) time: u64,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Default)]
+#[serde(default)]
 pub struct CmdOnlineRemove {
     pub(crate) cmd: String,
     pub(crate) nick: String,
     pub(crate) time: u64,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Default)]
+#[serde(default)]
 pub struct CmdOnlineAdd {
     pub(crate) cmd: String,
     pub(crate) nick: String,
@@ -80,7 +83,8 @@ pub struct CmdOnlineAdd {
     pub(crate) time: u64,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Default)]
+#[serde(default)]
 pub struct CmdInfo {
     pub(crate) cmd: String,
     pub(crate) trip: String,
@@ -88,14 +92,16 @@ pub struct CmdInfo {
     pub(crate) time: u64,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Default)]
+#[serde(default)]
 pub struct CmdChatType {
     pub(crate) cmd: String,
     #[serde(rename = "type")]
     pub(crate) type_name: String,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Default)]
+#[serde(default)]
 pub struct CmdChatWhisper {
     pub(crate) cmd: String,
     #[serde(rename = "type")]
@@ -109,7 +115,8 @@ pub struct CmdChatWhisper {
     pub(crate) time: u64,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Default)]
+#[serde(default)]
 pub struct CmdChatNormal {
     pub(crate) cmd: String,
     #[serde(rename = "type")]
@@ -123,7 +130,8 @@ pub struct CmdChatNormal {
     pub(crate) time: u64,
 }
 
-#[derive(Deserialize, Debug, Eq, PartialEq)]
+#[derive(Deserialize, Debug, Eq, PartialEq, Default)]
+#[serde(default)]
 pub struct CmdChatReq {
     pub(crate) cmd: String,
     pub(crate) text: String,

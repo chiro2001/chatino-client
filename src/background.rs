@@ -6,6 +6,7 @@ use crate::message::{
 };
 use anyhow::Result;
 use futures_util::{future, pin_mut, StreamExt};
+use log::{debug, info};
 use std::sync::mpsc::{Receiver, Sender};
 use std::sync::Arc;
 use std::time::Duration;
@@ -15,7 +16,8 @@ use tokio_tungstenite::tungstenite::Message;
 
 pub async fn background(tx: Sender<Action>, rx: Receiver<Action>) -> Result<()> {
     let tx = Arc::new(Mutex::new(tx));
-    // connect to server
+    info!("background task launching");
+    debug!("connecting to server");
     let client = ChatinoClient::new().await?;
     let client_available = Arc::new(Mutex::new(true));
     // let stop = Arc::new(Mutex::new(false));
@@ -29,49 +31,59 @@ pub async fn background(tx: Sender<Action>, rx: Receiver<Action>) -> Result<()> 
                     match message {
                         Message::Text(text) => match get_cmd(&text) {
                             None => {}
-                            Some(cmd) => match cmd.as_str() {
-                                "onlineSet" => {
-                                    let v: CmdOnlineSet = serde_json::from_str(&text).unwrap();
-                                    tx.lock().await.send(Action::OnlineSet(v)).unwrap();
-                                }
-                                "onlineRemove" => {
-                                    let v: CmdOnlineRemove = serde_json::from_str(&text).unwrap();
-                                    tx.lock().await.send(Action::OnlineRemove(v)).unwrap();
-                                }
-                                "onlineAdd" => {
-                                    let v: CmdOnlineAdd = serde_json::from_str(&text).unwrap();
-                                    tx.lock().await.send(Action::OnlineAdd(v)).unwrap();
-                                }
-                                "info" => {
-                                    let v: CmdInfo = serde_json::from_str(&text).unwrap();
-                                    tx.lock().await.send(Action::Info(v)).unwrap();
-                                }
-                                "chat" => match get_chat_type(&text) {
-                                    None => {}
-                                    Some(type_name) => match type_name.as_str() {
-                                        "chat" => {
-                                            let v: CmdChatNormal =
-                                                serde_json::from_str(&text).unwrap();
-                                            tx.lock().await.send(Action::ChatNormal(v)).unwrap();
-                                        }
-                                        "whisper" => {
-                                            let v: CmdChatWhisper =
-                                                serde_json::from_str(&text).unwrap();
-                                            tx.lock().await.send(Action::ChatWhisper(v)).unwrap();
-                                        }
-                                        _ => {}
+                            Some(cmd) => {
+                                info!("[{}] {}", cmd, text);
+                                match cmd.as_str() {
+                                    "onlineSet" => {
+                                        let v: CmdOnlineSet = serde_json::from_str(&text).unwrap();
+                                        tx.lock().await.send(Action::OnlineSet(v)).unwrap();
+                                    }
+                                    "onlineRemove" => {
+                                        let v: CmdOnlineRemove =
+                                            serde_json::from_str(&text).unwrap();
+                                        tx.lock().await.send(Action::OnlineRemove(v)).unwrap();
+                                    }
+                                    "onlineAdd" => {
+                                        let v: CmdOnlineAdd = serde_json::from_str(&text).unwrap();
+                                        tx.lock().await.send(Action::OnlineAdd(v)).unwrap();
+                                    }
+                                    "info" => {
+                                        let v: CmdInfo = serde_json::from_str(&text).unwrap();
+                                        tx.lock().await.send(Action::Info(v)).unwrap();
+                                    }
+                                    "chat" => match get_chat_type(&text) {
+                                        None => {}
+                                        Some(type_name) => match type_name.as_str() {
+                                            "chat" => {
+                                                let v: CmdChatNormal =
+                                                    serde_json::from_str(&text).unwrap();
+                                                tx.lock()
+                                                    .await
+                                                    .send(Action::ChatNormal(v))
+                                                    .unwrap();
+                                            }
+                                            "whisper" => {
+                                                let v: CmdChatWhisper =
+                                                    serde_json::from_str(&text).unwrap();
+                                                tx.lock()
+                                                    .await
+                                                    .send(Action::ChatWhisper(v))
+                                                    .unwrap();
+                                            }
+                                            _ => {}
+                                        },
                                     },
-                                },
-                                _ => {
-                                    tx.lock()
-                                        .await
-                                        .send(Action::RaiseError(format!(
-                                            "Unimplemented command: {}",
-                                            cmd
-                                        )))
-                                        .unwrap();
+                                    _ => {
+                                        tx.lock()
+                                            .await
+                                            .send(Action::RaiseError(format!(
+                                                "Unimplemented command: {}",
+                                                cmd
+                                            )))
+                                            .unwrap();
+                                    }
                                 }
-                            },
+                            }
                         },
                         _ => {}
                     }
@@ -80,39 +92,79 @@ pub async fn background(tx: Sender<Action>, rx: Receiver<Action>) -> Result<()> 
         })
     };
     pin_mut!(client_to_ws, ws_to_ui);
-    future::select(ws_to_ui, client_to_ws).await;
-    loop {
-        // let client_available = client_available.clone();
-        match rx.try_recv() {
-            Ok(action) => match action {
-                Action::GetInfo => {
-                    ws_send_tx
-                        .unbounded_send(Message::Text(
-                            serde_json::to_string(&CmdGetInfoReq::default()).unwrap(),
-                        ))
-                        .unwrap();
-                    // *client_available.lock().await = false;
-                }
-                Action::Login(channel, nick, password) => {
-                    ws_send_tx
-                        .unbounded_send(Message::Text(
-                            serde_json::to_string(&CmdJoinReq {
-                                cmd: "join".to_string(),
-                                channel,
-                                nick,
-                                password,
-                                clientName: CLIENT_NAME.to_string(),
-                                clientKey: CLIENT_KEY.to_string(),
-                            })
-                            .unwrap(),
-                        ))
-                        .unwrap();
-                }
-                Action::SendMessage(_) => {}
-                _ => {}
-            },
-            Err(_) => {}
+    let task = async move {
+        loop {
+            // let client_available = client_available.clone();
+            match rx.try_recv() {
+                Ok(action) => match action {
+                    Action::GetInfo => {
+                        ws_send_tx
+                            .unbounded_send(Message::Text(
+                                serde_json::to_string(&CmdGetInfoReq::default()).unwrap(),
+                            ))
+                            .unwrap();
+                        // *client_available.lock().await = false;
+                    }
+                    Action::Login(channel, nick, password) => {
+                        ws_send_tx
+                            .unbounded_send(Message::Text(
+                                serde_json::to_string(&CmdJoinReq {
+                                    cmd: "join".to_string(),
+                                    channel,
+                                    nick,
+                                    password,
+                                    clientName: CLIENT_NAME.to_string(),
+                                    clientKey: CLIENT_KEY.to_string(),
+                                })
+                                .unwrap(),
+                            ))
+                            .unwrap();
+                    }
+                    Action::SendMessage(_) => {}
+                    _ => {}
+                },
+                Err(_) => {}
+            }
+            sleep(Duration::from_millis(10)).await;
         }
-        sleep(Duration::from_millis(10)).await;
-    }
+    };
+    tokio::spawn(task);
+    debug!("before select...");
+    future::select(ws_to_ui, client_to_ws).await;
+    info!("background task launched");
+    // loop {
+    //     // let client_available = client_available.clone();
+    //     match rx.try_recv() {
+    //         Ok(action) => match action {
+    //             Action::GetInfo => {
+    //                 ws_send_tx
+    //                     .unbounded_send(Message::Text(
+    //                         serde_json::to_string(&CmdGetInfoReq::default()).unwrap(),
+    //                     ))
+    //                     .unwrap();
+    //                 // *client_available.lock().await = false;
+    //             }
+    //             Action::Login(channel, nick, password) => {
+    //                 ws_send_tx
+    //                     .unbounded_send(Message::Text(
+    //                         serde_json::to_string(&CmdJoinReq {
+    //                             cmd: "join".to_string(),
+    //                             channel,
+    //                             nick,
+    //                             password,
+    //                             clientName: CLIENT_NAME.to_string(),
+    //                             clientKey: CLIENT_KEY.to_string(),
+    //                         })
+    //                         .unwrap(),
+    //                     ))
+    //                     .unwrap();
+    //             }
+    //             Action::SendMessage(_) => {}
+    //             _ => {}
+    //         },
+    //         Err(_) => {}
+    //     }
+    //     sleep(Duration::from_millis(10)).await;
+    // }
+    Ok(())
 }

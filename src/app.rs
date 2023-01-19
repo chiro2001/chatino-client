@@ -1,4 +1,4 @@
-use crate::chatino::{Chatino, State};
+use crate::chatino::{Action, Chatino, State};
 use crate::emote::{emote_value, EMOTES};
 use crate::ui::password::password;
 use crate::user::User;
@@ -121,7 +121,8 @@ impl eframe::App for Chatino {
                     ui.separator();
                     ui.with_layout(Layout::top_down_justified(Align::Center), |ui| {
                         if ui.button("登录").clicked() {
-                            self.state = State::NowLogin;
+                            // self.state = State::NowLogin;
+                            self.state = State::Chatting;
                             emmit_login = true;
                         }
                     });
@@ -129,6 +130,17 @@ impl eframe::App for Chatino {
             });
             if emmit_login {
                 // self.client = Some(ChatinoClient::new())
+                match &self.action_tx {
+                    None => {}
+                    Some(tx) => {
+                        tx.send(Action::Login(
+                            self.room.to_string(),
+                            self.me.nick.to_string(),
+                            self.password.to_string(),
+                        ))
+                        .unwrap();
+                    }
+                }
             }
         }
     }
