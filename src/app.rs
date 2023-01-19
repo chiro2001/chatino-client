@@ -164,56 +164,61 @@ impl eframe::App for Chatino {
         match &self.action_rx {
             None => {}
             Some(rx) => match rx.try_recv() {
-                Ok(action) => match action {
-                    Action::GetInfo => {}
-                    Action::OnlineSet(v) => {
-                        self.me.extra = v.trip;
-                        self.users = v.nicks;
-                        if self.state == State::NowLogin {
-                            self.state = State::Chatting;
+                Ok(action) => {
+                    match action {
+                        Action::GetInfo => {}
+                        Action::OnlineSet(v) => {
+                            self.me.extra = v.trip;
+                            self.users = v.nicks;
+                            if self.state == State::NowLogin {
+                                self.state = State::Chatting;
+                            }
                         }
+                        Action::OnlineRemove(v) => {
+                            self.users = self
+                                .users
+                                .iter()
+                                .filter(|x| x.to_string() != v.nick)
+                                .map(|x| x.to_string())
+                                .collect();
+                        }
+                        Action::OnlineAdd(v) => {
+                            self.users.push(v.nick);
+                        }
+                        Action::Info(v) => {
+                            self.messages.push(ChatMessage {
+                                nick: "*".to_string(),
+                                extra: v.trip,
+                                time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
+                                msg: v.text,
+                            });
+                        }
+                        Action::ChatNormal(v) => {
+                            self.messages.push(ChatMessage {
+                                nick: v.nick,
+                                extra: v.trip,
+                                time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
+                                msg: v.text,
+                            });
+                        }
+                        Action::ChatWhisper(v) => {
+                            self.messages.push(ChatMessage {
+                                nick: v.nick,
+                                extra: v.trip,
+                                time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
+                                msg: v.text,
+                            });
+                        }
+                        Action::RaiseError(_) => {}
+                        _ => {}
                     }
-                    Action::OnlineRemove(v) => {
-                        self.users = self
-                            .users
-                            .iter()
-                            .filter(|x| x.to_string() != v.nick)
-                            .map(|x| x.to_string())
-                            .collect();
-                    }
-                    Action::OnlineAdd(v) => {
-                        self.users.push(v.nick);
-                    }
-                    Action::Info(v) => {
-                        self.messages.push(ChatMessage {
-                            nick: "*".to_string(),
-                            extra: v.trip,
-                            time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
-                            msg: v.text,
-                        });
-                    }
-                    Action::ChatNormal(v) => {
-                        self.messages.push(ChatMessage {
-                            nick: v.nick,
-                            extra: v.trip,
-                            time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
-                            msg: v.text,
-                        });
-                    }
-                    Action::ChatWhisper(v) => {
-                        self.messages.push(ChatMessage {
-                            nick: v.nick,
-                            extra: v.trip,
-                            time: SystemTime::UNIX_EPOCH.add(Duration::from_secs(v.time)),
-                            msg: v.text,
-                        });
-                    }
-                    Action::RaiseError(_) => {}
-                    _ => {}
-                },
+                    // ctx.request_repaint();
+                    // ctx.request_repaint_after(Duration::from_millis(100));
+                }
                 Err(_) => {}
             },
         }
+        ctx.request_repaint_after(Duration::from_millis(100));
     }
 
     /// Called by the frame work to save state before shutdown.
