@@ -4,6 +4,7 @@
 use crate::app::Chatino;
 
 mod app;
+mod ui;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
