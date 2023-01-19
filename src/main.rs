@@ -11,6 +11,7 @@ mod message;
 mod ui;
 mod user;
 mod chatino;
+mod background;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
