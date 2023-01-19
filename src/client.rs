@@ -26,7 +26,8 @@ impl ChatinoClient {
         let protocol = PROTOCOL.to_string();
         let server = SERVER.to_string();
         let port = PORT;
-        let url = format!("{}://{}:{}/", protocol, server, port);
+        // let url = format!("{}://{}:{}/", protocol, server, port);
+        let url = format!("{}://{}:{}/", "ws", "localhost", 12345);
         let (ws_stream, _) = connect_async(url)
             .await
             .map_err(|e| {
@@ -80,8 +81,8 @@ mod test {
     #[test]
     fn test_websocket() -> Result<()> {
         let runner = async {
-            // let url = format!("{}://{}:{}/", PROTOCOL, SERVER, PORT);
-            let url = format!("{}://{}:{}/", "ws", "localhost", 12345);
+            let url = format!("{}://{}:{}/", PROTOCOL, SERVER, PORT);
+            // let url = format!("{}://{}:{}/", "ws", "localhost", 12345);
             let (stdin_tx, stdin_rx) = futures_channel::mpsc::unbounded();
             tokio::spawn(read_stdin(stdin_tx));
 
