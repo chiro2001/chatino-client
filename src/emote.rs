@@ -1,7 +1,9 @@
-use lazy_static::lazy_static;
-use std::collections::HashMap;
+pub const EMOTES: &'static [(&'static str, &'static str)] = &include!("../assets/emotes.txt");
 
-lazy_static! {
-    pub static ref EMOTES: HashMap<&'static str, &'static str> =
-        include!("../assets/emotes.txt").iter().copied().collect();
+pub fn emote_value(key: &str) -> &'static str {
+    EMOTES
+        .iter()
+        .find(|(k, _)| k.to_string() == key.to_string())
+        .unwrap_or(&("", ""))
+        .1
 }

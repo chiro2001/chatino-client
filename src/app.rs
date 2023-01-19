@@ -1,4 +1,4 @@
-use crate::emote::EMOTES;
+use crate::emote::{emote_value, EMOTES};
 use crate::message::Message;
 use crate::ui::password::password;
 use eframe::emath::Align;
@@ -35,7 +35,7 @@ impl Default for Chatino {
             password: "".to_owned(),
             messages: vec![],
             input: "".to_string(),
-            emote: EMOTES.keys().find(|_| true).unwrap().to_string(),
+            emote: EMOTES.first().unwrap().0.to_string(),
         }
     }
 }
@@ -96,15 +96,28 @@ impl eframe::App for Chatino {
                     });
                 });
                 ui.with_layout(Layout::right_to_left(Align::Min), |ui| {
-                    if ui.button("<发送>").clicked() {}
-                    egui::ComboBox::from_id_source(&self.emote)
+                    if ui.button("<发送>").clicked() {
+                        self.input.clear();
+                    }
+                    egui::ComboBox::from_id_source("emote_select")
                         .selected_text(&self.emote)
                         .show_ui(ui, |ui| {
-                            EMOTES.iter().for_each(|(k, v)| {
-                                ui.selectable_value(&mut self.emote, v.to_string(), k.to_string());
+                            EMOTES.iter().for_each(|(k, _v)| {
+                                if ui
+                                    .selectable_value(
+                                        &mut self.emote,
+                                        k.to_string(),
+                                        k.to_string(),
+                                    )
+                                    .changed()
+                                {
+                                    self.input += emote_value(&self.emote);
+                                };
                             });
                         });
-                    if ui.button(&self.emote).clicked() {}
+                    if ui.button(&self.emote).clicked() {
+                        self.input += emote_value(&self.emote);
+                    }
                     if ui.button("图片").clicked() {}
                 });
             });
