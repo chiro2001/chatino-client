@@ -1,9 +1,8 @@
 #![warn(clippy::all, rust_2018_idioms)]
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")] // hide console window on Windows in release
 
-use crate::app::Chatino;
-
 use anyhow::Result;
+use crate::chatino::Chatino;
 
 mod app;
 mod client;
@@ -11,6 +10,7 @@ mod emote;
 mod message;
 mod ui;
 mod user;
+mod chatino;
 
 // When compiling natively:
 #[cfg(not(target_arch = "wasm32"))]
